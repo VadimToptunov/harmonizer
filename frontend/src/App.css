@@ -1,0 +1,17 @@
+.App {
+  text-align: left;
+}
+
+.staff-container {
+  margin: 20px 0;
+  padding: 20px;
+  background: white;
+  border-radius: 4px;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
