@@ -134,34 +134,80 @@ export const INSTRUMENTS = {
     key: 'C'
   },
   
-  // Voice
+  // Voices (SATB)
   soprano: {
     name: 'Soprano',
+    category: 'Voice',
     clef: 'treble',
     range: { min: 60, max: 88 }, // C4 to E6
     transposition: 0,
-    key: 'C'
+    key: 'C',
+    isVoice: true
   },
   alto: {
     name: 'Alto',
+    category: 'Voice',
     clef: 'treble',
     range: { min: 55, max: 84 }, // G3 to C6
     transposition: 0,
-    key: 'C'
+    key: 'C',
+    isVoice: true
   },
   tenor: {
     name: 'Tenor',
+    category: 'Voice',
     clef: 'treble',
     range: { min: 48, max: 79 }, // C3 to G5
     transposition: 0,
-    key: 'C'
+    key: 'C',
+    isVoice: true
   },
   bass: {
     name: 'Bass',
+    category: 'Voice',
     clef: 'bass',
     range: { min: 40, max: 72 }, // E2 to C5
     transposition: 0,
-    key: 'C'
+    key: 'C',
+    isVoice: true
+  },
+  
+  // Additional vocal ranges
+  sopranino: {
+    name: 'Sopranino',
+    category: 'Voice',
+    clef: 'treble',
+    range: { min: 65, max: 93 }, // F4 to A6
+    transposition: 0,
+    key: 'C',
+    isVoice: true
+  },
+  mezzoSoprano: {
+    name: 'Mezzo-Soprano',
+    category: 'Voice',
+    clef: 'treble',
+    range: { min: 58, max: 86 }, // Bb3 to D6
+    transposition: 0,
+    key: 'C',
+    isVoice: true
+  },
+  baritone: {
+    name: 'Baritone',
+    category: 'Voice',
+    clef: 'bass',
+    range: { min: 43, max: 74 }, // G2 to D5
+    transposition: 0,
+    key: 'C',
+    isVoice: true
+  },
+  bassBaritone: {
+    name: 'Bass-Baritone',
+    category: 'Voice',
+    clef: 'bass',
+    range: { min: 38, max: 70 }, // D2 to Bb4
+    transposition: 0,
+    key: 'C',
+    isVoice: true
   },
   
   // Piano
@@ -189,12 +235,40 @@ export const getInstrument = (name) => {
  */
 export const getInstrumentsByCategory = () => {
   return {
+    'Voices (SATB)': ['soprano', 'alto', 'tenor', 'bass'],
+    'Additional Voices': ['sopranino', 'mezzoSoprano', 'baritone', 'bassBaritone'],
     'Strings': ['violin', 'viola', 'cello', 'doubleBass'],
     'Woodwinds': ['flute', 'piccolo', 'clarinetBb', 'clarinetA', 'oboe', 'bassoon', 
                   'saxophoneSoprano', 'saxophoneAlto', 'saxophoneTenor', 'saxophoneBaritone'],
     'Brass': ['trumpet', 'frenchHorn', 'trombone', 'tuba'],
-    'Voice': ['soprano', 'alto', 'tenor', 'bass'],
     'Keyboard': ['piano']
   };
+};
+
+/**
+ * Get all voice instruments (SATB and additional)
+ */
+export const getVoices = () => {
+  return {
+    'SATB': ['soprano', 'alto', 'tenor', 'bass'],
+    'Additional': ['sopranino', 'mezzoSoprano', 'baritone', 'bassBaritone']
+  };
+};
+
+/**
+ * Check if an instrument is a voice
+ */
+export const isVoice = (instrumentKey) => {
+  return INSTRUMENTS[instrumentKey]?.isVoice === true;
+};
+
+/**
+ * Get SATB voices specifically
+ */
+export const getSATBVoices = () => {
+  return ['soprano', 'alto', 'tenor', 'bass'].map(key => ({
+    key,
+    ...INSTRUMENTS[key]
+  }));
 };
 

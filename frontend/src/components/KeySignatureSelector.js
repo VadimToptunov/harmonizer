@@ -88,8 +88,6 @@ const KeySignatureSelector = ({ value, onChange, label = "Key Signature" }) => {
 
   const selectedKey = keys.find(k => k.name === value) || keys[0];
 
-  const selectedKey = keys.find(k => k.name === value) || keys[0];
-
   return (
     <Box>
       <Button

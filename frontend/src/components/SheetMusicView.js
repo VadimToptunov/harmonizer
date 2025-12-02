@@ -29,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import EnhancedStaffEditor from './EnhancedStaffEditor';
 import AdvancedMusicEditor from './AdvancedMusicEditor';
+import ProfessionalMusicEditor from './ProfessionalMusicEditor';
 import DirectionEditor from './DirectionEditor';
 import PlaybackController from './PlaybackController';
 import KeySignatureSelector from './KeySignatureSelector';
@@ -310,25 +311,27 @@ const SheetMusicView = ({
             {/* Staff 1 - Treble (Soprano & Alto) */}
             {staffCount === 4 && (
               <>
-                <AdvancedMusicEditor
+                <ProfessionalMusicEditor
                   staffId="soprano"
                   clef="treble"
                   keySignature={keySignature}
                   timeSignature={timeSignature}
                   notes={staffData.staff1.voices.soprano}
                   onNotesChange={(notes) => handleStaffNotesChange('staff1', 'soprano', notes)}
+                  onKeySignatureChange={setKeySignature}
                   staffLabel="Soprano"
                   showLabels={true}
                   measures={measures}
                   tempo={tempo}
                 />
-                <AdvancedMusicEditor
+                <ProfessionalMusicEditor
                   staffId="alto"
                   clef="treble"
                   keySignature={keySignature}
                   timeSignature={timeSignature}
                   notes={staffData.staff1.voices.alto}
                   onNotesChange={(notes) => handleStaffNotesChange('staff1', 'alto', notes)}
+                  onKeySignatureChange={setKeySignature}
                   staffLabel="Alto"
                   showLabels={true}
                   measures={measures}
@@ -339,30 +342,30 @@ const SheetMusicView = ({
 
             {/* Staff 2 - Bass (Tenor & Bass) */}
             {staffCount === 4 && (
-              <AdvancedMusicEditor
+              <EnhancedStaffEditor
                 staffId="tenor"
                 clef="treble"
                 keySignature={keySignature}
                 timeSignature={timeSignature}
                 notes={staffData.staff2.voices.tenor}
                 onNotesChange={(notes) => handleStaffNotesChange('staff2', 'tenor', notes)}
+                onKeySignatureChange={setKeySignature}
                 staffLabel="Tenor"
                 showLabels={true}
                 measures={measures}
-                tempo={tempo}
               />
             )}
-            <AdvancedMusicEditor
+            <EnhancedStaffEditor
               staffId="bass"
               clef="bass"
               keySignature={keySignature}
               timeSignature={timeSignature}
               notes={staffData.staff2.voices.bass}
               onNotesChange={(notes) => handleStaffNotesChange('staff2', 'bass', notes)}
+              onKeySignatureChange={setKeySignature}
               staffLabel="Bass"
               showLabels={true}
               measures={measures}
-              tempo={tempo}
             />
             
             {/* Direction Editor for figured bass and Roman numerals */}
