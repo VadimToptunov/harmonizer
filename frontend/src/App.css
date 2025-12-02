@@ -1,17 +1,148 @@
-.App {
-  text-align: left;
+* {
+  box-sizing: border-box;
 }
 
-.staff-container {
-  margin: 20px 0;
-  padding: 20px;
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+.App {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Professional music editor styling */
+.vexflow-container {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.vexflow-container svg {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Staff editor styling */
+.staff-editor-container {
+  position: relative;
   background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.staff-editor-container:hover {
+  border-color: #1976d2;
+}
+
+.staff-editor-container.selected {
+  border-color: #4CAF50;
+  border-width: 2px;
+}
+
+/* Toolbar styling */
+.toolbar-button {
+  margin: 0 4px;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toolbar-button:hover {
+  background: #f5f5f5;
+  border-color: #999;
+}
+
+.toolbar-button.active {
+  background: #1976d2;
+  color: white;
+  border-color: #1976d2;
+}
+
+/* Note duration buttons */
+.duration-button {
+  padding: 4px 8px;
+  margin: 0 2px;
+  border: 1px solid #ccc;
+  background: white;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  min-width: 32px;
+}
+
+.duration-button:hover {
+  background: #e3f2fd;
+  border-color: #1976d2;
+}
+
+.duration-button.active {
+  background: #1976d2;
+  color: white;
+  border-color: #1976d2;
+}
+
+/* Sheet music display */
+.sheet-music-container {
+  background: white;
+  padding: 24px;
+  min-height: 100%;
+  overflow-x: auto;
+}
+
+.sheet-music-container svg {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   border-radius: 4px;
 }
 
-.controls {
-  display: flex;
-  gap: 10px;
-  margin: 20px 0;
+/* Settings panel */
+.settings-panel {
+  background: #f5f5f5;
+  border-top: 1px solid #e0e0e0;
+  padding: 16px;
 }
 
+/* Responsive design */
+@media (max-width: 768px) {
+  .sheet-music-container {
+    padding: 12px;
+  }
+  
+  .staff-editor-container {
+    padding: 8px;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

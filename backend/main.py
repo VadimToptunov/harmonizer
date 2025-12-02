@@ -155,18 +155,30 @@ async def harmonize(request: HarmonizeRequest):
                 solutions.append(best.voices)
                 prev_solutions = step_solutions[:1]
             else:
-                # Fallback
+                # Fallback - create a solution and update prev_solutions
+                from solver import Solution
                 if prev_solutions:
                     prev_voices = prev_solutions[0].voices.copy()
                     prev_voices[Voice.BASS] = bass_note
-                    solutions.append(prev_voices)
+                    fallback_voices = prev_voices
                 else:
-                    solutions.append({
+                    fallback_voices = {
                         Voice.SOPRANO: bass_note + 12,
                         Voice.ALTO: bass_note + 7,
                         Voice.TENOR: bass_note + 4,
                         Voice.BASS: bass_note
-                    })
+                    }
+                
+                # Create Solution object for fallback
+                fallback_solution = Solution(
+                    voices=fallback_voices,
+                    score=100.0,  # High score indicates fallback
+                    violations=[]
+                )
+                
+                solutions.append(fallback_voices)
+                # Update prev_solutions so next iteration uses correct state
+                prev_solutions = [fallback_solution]
         
         # Convert to response format
         result = []

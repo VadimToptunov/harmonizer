@@ -5,7 +5,7 @@ from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
-from typing import List, Dict
+from typing import List, Dict, Union, BinaryIO
 import io
 
 
@@ -17,14 +17,14 @@ def midi_to_note_name(midi: int) -> str:
     return f"{note}{octave}"
 
 
-def export_harmony_to_pdf(voices_list: List[Dict], settings: Dict, output_path: str):
+def export_harmony_to_pdf(voices_list: List[Dict], settings: Dict, output_path: Union[str, BinaryIO]):
     """
     Export harmony to PDF.
     
     Args:
         voices_list: List of voice dictionaries (original and solution)
         settings: Music settings (tempo, time signature, etc.)
-        output_path: Path to save PDF
+        output_path: Path to save PDF (str) or file-like object (BinaryIO)
     """
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
