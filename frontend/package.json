@@ -16,7 +16,6 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
     "react-scripts": "5.0.1",
-    "react-vexflow": "^1.0.0",
     "vexflow": "^4.0.3",
     "web-vitals": "^3.5.0"
   },
