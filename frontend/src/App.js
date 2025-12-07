@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { AppBar, Toolbar, Typography, Box } from '@mui/material';
+import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
+import { Save } from '@mui/icons-material';
 import SheetMusicView from './components/SheetMusicView';
 import './App.css';
 
@@ -80,11 +81,19 @@ function App() {
 
   return (
     <div className="App" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Harmony Exercise Solver - Professional Music Editor
+      <AppBar position="static" elevation={1}>
+        <Toolbar sx={{ minHeight: '56px !important', px: 2 }}>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600, fontSize: '1.1rem' }}>
+            Harmony Editor
           </Typography>
+          <Button
+            color="inherit"
+            startIcon={<Save />}
+            onClick={() => handleSave({})}
+            sx={{ ml: 2 }}
+          >
+            Save
+          </Button>
         </Toolbar>
       </AppBar>
       

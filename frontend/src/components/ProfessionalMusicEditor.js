@@ -69,6 +69,12 @@ const ProfessionalMusicEditor = ({
   const [showRulers, setShowRulers] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState(instrument);
   
+  // Sibelius-style modes
+  const [inputMode, setInputMode] = useState('selection'); // 'note', 'selection', 'playback'
+  const [noteInputActive, setNoteInputActive] = useState(false);
+  const [currentInputPosition, setCurrentInputPosition] = useState(0); // Position for note input
+  const [magneticLayout, setMagneticLayout] = useState(true); // Auto-formatting
+  
   // Undo/redo
   const [history, setHistory] = useState([notes]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -84,6 +90,12 @@ const ProfessionalMusicEditor = ({
   // Dialogs
   const [tupletDialogOpen, setTupletDialogOpen] = useState(false);
   const [customTuplet, setCustomTuplet] = useState({ num: 3, den: 2 });
+  
+  // Context menu (right-click)
+  const [contextMenuAnchor, setContextMenuAnchor] = useState(null);
+  
+  // Properties panel
+  const [showPropertiesPanel, setShowPropertiesPanel] = useState(false);
 
   // Update history
   useEffect(() => {
@@ -352,39 +364,39 @@ const ProfessionalMusicEditor = ({
 
   const yToMidi = useCallback((y, clef) => {
     // More precise calculation for note placement
+    // VexFlow staff: y=40 is top of staff, each line is 10px apart
     const staffTop = 40;
     const lineSpacing = 10; // VexFlow default line spacing
     const spaceHeight = lineSpacing / 2; // Half line = one semitone
     
-    // Account for zoom
-    const relativeY = (y - staffTop) / (zoom / 100);
-    
     // Calculate which line/space (0 = top line, negative = above, positive = below)
-    const lineNumber = Math.round(relativeY / spaceHeight);
+    // Note: y is already in SVG coordinates accounting for zoom
+    const relativeY = y - staffTop;
+    const lineNumber = relativeY / spaceHeight; // Use exact division, not rounded
     
     let midi;
     if (clef === 'bass') {
-      // Bass clef: F3 (MIDI 53) is on 4th line
-      // Line 0 = C3 (MIDI 48), line 4 = F3 (MIDI 53)
-      const baseMidi = 48; // C3
-      const baseLine = 0;
-      midi = baseMidi + (lineNumber - baseLine) * 0.5;
+      // Bass clef: F3 (MIDI 53) is on 4th line (line 4)
+      // Top line (line 0) = E3 (MIDI 52), 4th line = F3 (MIDI 53)
+      // Each line/space = 1 semitone
+      const baseMidi = 52; // E3 on top line
+      midi = baseMidi + lineNumber;
     } else if (clef === 'alto') {
-      // Alto clef: C4 (MIDI 60) is on middle line
-      const baseMidi = 60; // C4
+      // Alto clef: C4 (MIDI 60) is on middle line (line 2)
+      const baseMidi = 60; // C4 on middle line
       const baseLine = 2; // Middle line
-      midi = baseMidi + (lineNumber - baseLine) * 0.5;
+      midi = baseMidi + (lineNumber - baseLine);
     } else if (clef === 'tenor') {
       // Tenor clef: C4 (MIDI 60) is on 4th line
-      const baseMidi = 60; // C4
+      const baseMidi = 60; // C4 on 4th line
       const baseLine = 4;
-      midi = baseMidi + (lineNumber - baseLine) * 0.5;
+      midi = baseMidi + (lineNumber - baseLine);
     } else {
-      // Treble clef: E4 (MIDI 64) is on first line
-      // Line 0 = E4 (MIDI 64), line 4 = G4 (MIDI 67)
-      const baseMidi = 64; // E4
-      const baseLine = 0;
-      midi = baseMidi + (lineNumber - baseLine) * 0.5;
+      // Treble clef: E4 (MIDI 64) is on first line (top line)
+      // Top line (line 0) = E4 (MIDI 64)
+      // Each line/space = 1 semitone
+      const baseMidi = 64; // E4 on top line
+      midi = baseMidi + lineNumber;
     }
     
     return Math.max(21, Math.min(108, Math.round(midi)));
@@ -394,29 +406,33 @@ const ProfessionalMusicEditor = ({
   const midiToY = useCallback((midi, clef) => {
     const staffTop = 40;
     const lineSpacing = 10;
-    const spaceHeight = lineSpacing / 2;
+    const spaceHeight = lineSpacing / 2; // Half line = one semitone
     
-    let lineNumber;
+    let y;
     if (clef === 'bass') {
-      const baseMidi = 48;
-      const baseLine = 0;
-      lineNumber = baseLine + (midi - baseMidi) * 2;
+      // Bass clef: E3 (MIDI 52) is on top line
+      const baseMidi = 52; // E3 on top line
+      const semitonesFromBase = midi - baseMidi;
+      y = staffTop + semitonesFromBase * spaceHeight;
     } else if (clef === 'alto') {
-      const baseMidi = 60;
-      const baseLine = 2;
-      lineNumber = baseLine + (midi - baseMidi) * 2;
+      // Alto clef: C4 (MIDI 60) is on middle line (line 2)
+      const baseMidi = 60; // C4 on middle line
+      const semitonesFromBase = midi - baseMidi;
+      y = staffTop + 2 * lineSpacing + semitonesFromBase * spaceHeight;
     } else if (clef === 'tenor') {
-      const baseMidi = 60;
-      const baseLine = 4;
-      lineNumber = baseLine + (midi - baseMidi) * 2;
+      // Tenor clef: C4 (MIDI 60) is on 4th line
+      const baseMidi = 60; // C4 on 4th line
+      const semitonesFromBase = midi - baseMidi;
+      y = staffTop + 4 * lineSpacing + semitonesFromBase * spaceHeight;
     } else {
-      const baseMidi = 64;
-      const baseLine = 0;
-      lineNumber = baseLine + (midi - baseMidi) * 2;
+      // Treble clef: E4 (MIDI 64) is on top line
+      const baseMidi = 64; // E4 on top line
+      const semitonesFromBase = midi - baseMidi;
+      y = staffTop + semitonesFromBase * spaceHeight;
     }
     
-    return staffTop + (lineNumber * spaceHeight) * (zoom / 100);
-  }, [zoom]);
+    return y;
+  }, []);
 
   // Render staff with all advanced features
   useEffect(() => {
@@ -442,12 +458,34 @@ const ProfessionalMusicEditor = ({
     const beatsPerMeasure = parseInt(beats, 10) || 4;
     const beatTypeNum = parseInt(beatType, 10) || 4;
     const staffWidth = 700 * (zoom / 100);
-    const measureWidth = measures > 0 ? staffWidth / measures : staffWidth;
+    const measureWidth = measures > 0 ? (staffWidth - 20) / measures : staffWidth - 20;
 
-    // Render multiple measures
+    // Render multiple measures - connect them properly (no gaps)
     for (let measure = 0; measure < measures; measure++) {
       const xPos = 10 + measure * measureWidth;
-      const stave = new Stave(xPos, 40, measureWidth - 20);
+      const staveWidth = measureWidth;
+      const stave = new Stave(xPos, 40, staveWidth);
+      
+      // Connect measures - draw bar line between them (except first measure)
+      if (measure > 0) {
+        // Draw bar line between measures
+        context.setStrokeStyle('#000000');
+        context.setLineWidth(1.5);
+        context.beginPath();
+        context.moveTo(xPos, 40);
+        context.lineTo(xPos, 100);
+        context.stroke();
+      }
+      
+      // Draw final bar line on last measure
+      if (measure === measures - 1) {
+        context.setStrokeStyle('#000000');
+        context.setLineWidth(1.5);
+        context.beginPath();
+        context.moveTo(xPos + staveWidth, 40);
+        context.lineTo(xPos + staveWidth, 100);
+        context.stroke();
+      }
       
       if (measure === 0) {
         if (clef === 'bass') {
@@ -616,7 +654,7 @@ const ProfessionalMusicEditor = ({
         voice.addTickables(staveNotes);
         
         try {
-          new Formatter().joinVoices([voice]).format([voice], measureWidth - 60);
+          new Formatter().joinVoices([voice]).format([voice], measureWidth - 40);
           voice.draw(context, stave);
           
           // Add beams
@@ -675,9 +713,25 @@ const ProfessionalMusicEditor = ({
       let hoverNoteLabel = null;
       
       const handleMouseMove = (e) => {
-        const rect = container.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / (zoom / 100);
-        const y = (e.clientY - rect.top) / (zoom / 100);
+        // Get SVG coordinates properly
+        const svg = container.querySelector('svg');
+        if (!svg) return;
+        
+        const svgPoint = svg.createSVGPoint();
+        svgPoint.x = e.clientX;
+        svgPoint.y = e.clientY;
+        
+        const ctm = svg.getScreenCTM();
+        if (ctm) {
+          svgPoint.x = (svgPoint.x - ctm.e) / ctm.a;
+          svgPoint.y = (svgPoint.y - ctm.f) / ctm.d;
+        } else {
+          const rect = svg.getBoundingClientRect();
+          svgPoint.x = (e.clientX - rect.left) / (zoom / 100);
+          svgPoint.y = (e.clientY - rect.top) / (zoom / 100);
+        }
+        
+        const y = svgPoint.y;
         
         // Only show feedback in staff area
         if (y >= 30 && y <= 120) {
@@ -751,15 +805,109 @@ const ProfessionalMusicEditor = ({
         }
       };
       
+      // Context menu handler (right-click)
+      const handleContextMenu = (e) => {
+        e.preventDefault();
+        
+        const svg = container.querySelector('svg');
+        if (!svg) return;
+        
+        const rect = svg.getBoundingClientRect();
+        const svgPoint = svg.createSVGPoint();
+        svgPoint.x = e.clientX;
+        svgPoint.y = e.clientY;
+        
+        const ctm = svg.getScreenCTM();
+        if (ctm) {
+          svgPoint.x = (svgPoint.x - ctm.e) / ctm.a;
+          svgPoint.y = (svgPoint.y - ctm.f) / ctm.d;
+        } else {
+          svgPoint.x = (e.clientX - rect.left) / (zoom / 100);
+          svgPoint.y = (e.clientY - rect.top) / (zoom / 100);
+        }
+        
+        const y = svgPoint.y;
+        if (y >= 30 && y <= 120) {
+          const midi = yToMidi(y, clef);
+          // Find if there's a note at this position (check all notes)
+          let clickedNoteIndex = -1;
+          let minDistance = Infinity;
+          
+          notes.forEach((note, idx) => {
+            const noteY = midiToY(note.midi, clef);
+            const distance = Math.abs(noteY - y);
+            if (distance < 8 && distance < minDistance) { // 8px tolerance
+              minDistance = distance;
+              clickedNoteIndex = idx;
+            }
+          });
+          
+          if (clickedNoteIndex !== -1) {
+            setSelectedNoteIndices([clickedNoteIndex]);
+            setContextMenuAnchor({ x: e.clientX, y: e.clientY });
+          } else {
+            // Show context menu for empty space
+            setContextMenuAnchor({ x: e.clientX, y: e.clientY });
+          }
+        }
+      };
+      
       const handleClick = (e) => {
         if (isDragging) return;
         
-        const rect = container.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / (zoom / 100);
-        const y = (e.clientY - rect.top) / (zoom / 100);
+        // Close context menu on left click
+        if (contextMenuAnchor) {
+          setContextMenuAnchor(null);
+        }
         
+        // Get SVG element and its viewBox/transform
+        const svg = container.querySelector('svg');
+        if (!svg) return;
+        
+        const rect = svg.getBoundingClientRect();
+        const svgPoint = svg.createSVGPoint();
+        svgPoint.x = e.clientX;
+        svgPoint.y = e.clientY;
+        
+        // Transform to SVG coordinates accounting for zoom
+        const ctm = svg.getScreenCTM();
+        if (ctm) {
+          svgPoint.x = (svgPoint.x - ctm.e) / ctm.a;
+          svgPoint.y = (svgPoint.y - ctm.f) / ctm.d;
+        } else {
+          // Fallback if no transform
+          svgPoint.x = (e.clientX - rect.left) / (zoom / 100);
+          svgPoint.y = (e.clientY - rect.top) / (zoom / 100);
+        }
+        
+        const y = svgPoint.y;
+        
+        // Check if click is in staff area (approximately y=40 to y=100 for staff)
         if (y >= 30 && y <= 120) {
           const midi = yToMidi(y, clef);
+          
+          // Ctrl/Cmd+Click for chord input (Sibelius style)
+          if (e.ctrlKey || e.metaKey) {
+            if (selectedNoteIndices.length > 0) {
+              // Add to existing chord
+              const lastSelected = selectedNoteIndices[selectedNoteIndices.length - 1];
+              const newNotes = [...notes];
+              if (!newNotes[lastSelected].chord) {
+                newNotes[lastSelected] = {
+                  ...newNotes[lastSelected],
+                  chord: true,
+                  notes: [newNotes[lastSelected].midi, midi]
+                };
+              } else {
+                newNotes[lastSelected] = {
+                  ...newNotes[lastSelected],
+                  notes: [...(newNotes[lastSelected].notes || []), midi]
+                };
+              }
+              addToHistory(newNotes);
+              return;
+            }
+          }
           
           if (currentChord) {
             if (chordNotes.length === 0) {
@@ -817,7 +965,7 @@ const ProfessionalMusicEditor = ({
       
       // Store handlers and SVG reference
       eventHandlersRef.current = {
-        handlers: { handleMouseMove, handleMouseLeave, handleClick },
+        handlers: { handleMouseMove, handleMouseLeave, handleClick, handleContextMenu },
         svg: svg
       };
       
@@ -825,16 +973,18 @@ const ProfessionalMusicEditor = ({
       svg.addEventListener('mousemove', handleMouseMove);
       svg.addEventListener('mouseleave', handleMouseLeave);
       svg.addEventListener('click', handleClick);
+      svg.addEventListener('contextmenu', handleContextMenu);
     }, 100);
     
     // Cleanup function
     return () => {
       clearTimeout(timeoutId);
       if (eventHandlersRef.current.handlers && eventHandlersRef.current.svg) {
-        const { handleMouseMove, handleMouseLeave, handleClick } = eventHandlersRef.current.handlers;
+        const { handleMouseMove, handleMouseLeave, handleClick, handleContextMenu } = eventHandlersRef.current.handlers;
         eventHandlersRef.current.svg.removeEventListener('mousemove', handleMouseMove);
         eventHandlersRef.current.svg.removeEventListener('mouseleave', handleMouseLeave);
         eventHandlersRef.current.svg.removeEventListener('click', handleClick);
+        eventHandlersRef.current.svg.removeEventListener('contextmenu', handleContextMenu);
         eventHandlersRef.current = { handlers: null, svg: null };
       }
     };
@@ -868,19 +1018,98 @@ const ProfessionalMusicEditor = ({
         return;
       }
       
+      // Sibelius-style QWERTY note input (A-G for notes)
+      if (noteInputActive || inputMode === 'note') {
+        const qwertyToNote = {
+          'a': 60, 'A': 60, // C4
+          's': 62, 'S': 62, // D4
+          'd': 64, 'D': 64, // E4
+          'f': 65, 'F': 65, // F4
+          'g': 67, 'G': 67, // G4
+          'h': 69, 'H': 69, // A4
+          'j': 71, 'J': 71, // B4
+          'w': 61, 'W': 61, // C#4
+          'e': 63, 'E': 63, // D#4
+          't': 66, 'T': 66, // F#4
+          'y': 68, 'Y': 68, // G#4
+          'u': 70, 'U': 70, // A#4
+        };
+        
+        if (qwertyToNote[e.key.toLowerCase()] !== undefined) {
+          e.preventDefault();
+          const midi = qwertyToNote[e.key.toLowerCase()];
+          // Adjust for octave (Shift = octave up, Ctrl = octave down)
+          let adjustedMidi = midi;
+          if (e.shiftKey) adjustedMidi += 12;
+          if (e.ctrlKey || e.metaKey) adjustedMidi -= 12;
+          
+          const newNote = {
+            midi: adjustedMidi,
+            duration: currentDuration,
+            accidental: currentAccidental,
+            rest: false,
+            tie: currentTie,
+            dot: currentDot,
+            tuplet: currentTuplet ? { num: 3, den: 2 } : null,
+            dynamic: currentDynamic,
+            articulation: currentArticulation,
+            ornament: currentOrnament
+          };
+          
+          // Insert at current position or append
+          const insertPos = noteInputActive ? currentInputPosition : notes.length;
+          const newNotes = [...notes];
+          newNotes.splice(insertPos, 0, newNote);
+          
+          // Update position for next note
+          if (noteInputActive) {
+            setCurrentInputPosition(insertPos + 1);
+          }
+          
+          addToHistory(newNotes);
+          setSelectedNoteIndices([insertPos]);
+          
+          // Auto-advance position
+          if (magneticLayout) {
+            // Auto-format after input
+            setTimeout(() => {
+              // Trigger re-render for formatting
+            }, 0);
+          }
+          
+          if (currentTie) setCurrentTie(false);
+          return;
+        }
+      }
+      
+      // Toggle note input mode (N key - Sibelius style)
+      if (e.key === 'n' || e.key === 'N') {
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          setNoteInputActive(!noteInputActive);
+          setInputMode(noteInputActive ? 'selection' : 'note');
+          if (!noteInputActive) {
+            setCurrentInputPosition(notes.length);
+          }
+          return;
+        }
+      }
+      
       // Accidental shortcuts
       if (e.key === '#') {
         e.preventDefault();
         setCurrentAccidental('#');
-      } else if (e.key === 'b') {
+      } else if (e.key === 'b' && !noteInputActive) {
         e.preventDefault();
         setCurrentAccidental('b');
-      } else if (e.key === 'n') {
+      } else if (e.key === 'n' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         setCurrentAccidental('n');
       } else if (e.key === 'Escape') {
         e.preventDefault();
         setCurrentAccidental(null);
+        setNoteInputActive(false);
+        setInputMode('selection');
       }
       
       // Duration shortcuts (numbers)
@@ -919,7 +1148,7 @@ const ProfessionalMusicEditor = ({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [readOnly, undo, redo, copyNotes, pasteNotes, selectAll, selectNone, selectedNoteIndices, notes, addToHistory, currentRest, currentTie, currentDot]);
+  }, [readOnly, undo, redo, copyNotes, pasteNotes, selectAll, selectNone, selectedNoteIndices, notes, addToHistory, currentRest, currentTie, currentDot, noteInputActive, inputMode, currentInputPosition, currentDuration, currentAccidental, currentTuplet, currentDynamic, currentArticulation, currentOrnament, magneticLayout, addToHistory]);
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -933,9 +1162,28 @@ const ProfessionalMusicEditor = ({
         sx={{ 
           p: 1, 
           backgroundColor: readOnly ? 'grey.50' : 'white',
-          border: selectedNoteIndices.length > 0 && !readOnly ? '2px solid #4CAF50' : '1px solid #e0e0e0'
+          border: selectedNoteIndices.length > 0 && !readOnly ? '2px solid #4CAF50' : '1px solid #e0e0e0',
+          position: 'relative'
         }}
       >
+        {/* Note Input Indicator */}
+        {noteInputActive && (
+          <Box sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            bgcolor: 'primary.main',
+            color: 'white',
+            px: 1.5,
+            py: 0.5,
+            borderRadius: 1,
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            zIndex: 10
+          }}>
+            Note Input Active (Press N to exit)
+          </Box>
+        )}
         {/* Professional Toolbar */}
         {!readOnly && (
           <>
@@ -1421,6 +1669,192 @@ const ProfessionalMusicEditor = ({
           <Button onClick={() => createTuplet(customTuplet.num, customTuplet.den)}>Create</Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Context Menu (Right-click) */}
+      <Menu
+        anchorReference="anchorPosition"
+        anchorPosition={
+          contextMenuAnchor
+            ? { top: contextMenuAnchor.y, left: contextMenuAnchor.x }
+            : undefined
+        }
+        open={Boolean(contextMenuAnchor)}
+        onClose={() => setContextMenuAnchor(null)}
+      >
+        {selectedNoteIndices.length > 0 ? (
+          <>
+            <MenuItem onClick={() => {
+              if (selectedNoteIndices.length > 0) {
+                const newNotes = notes.filter((_, i) => !selectedNoteIndices.includes(i));
+                addToHistory(newNotes);
+                setSelectedNoteIndices([]);
+              }
+              setContextMenuAnchor(null);
+            }}>
+              <Delete fontSize="small" sx={{ mr: 1 }} /> Delete
+            </MenuItem>
+            <MenuItem onClick={() => {
+              copyNotes();
+              setContextMenuAnchor(null);
+            }}>
+              <ContentCopy fontSize="small" sx={{ mr: 1 }} /> Copy
+            </MenuItem>
+            <MenuItem onClick={() => {
+              setShowPropertiesPanel(true);
+              setContextMenuAnchor(null);
+            }}>
+              <Settings fontSize="small" sx={{ mr: 1 }} /> Properties
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => {
+              transposeNotes(1);
+              setContextMenuAnchor(null);
+            }}>Transpose Up (+1)</MenuItem>
+            <MenuItem onClick={() => {
+              transposeNotes(-1);
+              setContextMenuAnchor(null);
+            }}>Transpose Down (-1)</MenuItem>
+            <MenuItem onClick={() => {
+              transposeNotes(12);
+              setContextMenuAnchor(null);
+            }}>Transpose Up Octave (+12)</MenuItem>
+            <MenuItem onClick={() => {
+              transposeNotes(-12);
+              setContextMenuAnchor(null);
+            }}>Transpose Down Octave (-12)</MenuItem>
+          </>
+        ) : (
+          <>
+            <MenuItem onClick={() => {
+              setNoteInputActive(true);
+              setInputMode('note');
+              setContextMenuAnchor(null);
+            }}>
+              <MusicNote fontSize="small" sx={{ mr: 1 }} /> Start Note Input
+            </MenuItem>
+            <MenuItem onClick={() => {
+              pasteNotes();
+              setContextMenuAnchor(null);
+            }}>
+              <ContentPaste fontSize="small" sx={{ mr: 1 }} /> Paste
+            </MenuItem>
+          </>
+        )}
+      </Menu>
+      
+      {/* Properties Panel (Sibelius-style) */}
+      {showPropertiesPanel && selectedNoteIndices.length > 0 && (
+        <Paper
+          elevation={4}
+          sx={{
+            position: 'fixed',
+            right: 16,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: 280,
+            maxHeight: '80vh',
+            overflow: 'auto',
+            zIndex: 1300,
+            p: 2
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+              Properties
+            </Typography>
+            <IconButton size="small" onClick={() => setShowPropertiesPanel(false)}>
+              <Remove fontSize="small" />
+            </IconButton>
+          </Box>
+          
+          {selectedNoteIndices.length === 1 && notes[selectedNoteIndices[0]] && (() => {
+            const note = notes[selectedNoteIndices[0]];
+            return (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Duration</InputLabel>
+                  <Select
+                    value={note.duration || currentDuration}
+                    onChange={(e) => {
+                      const newNotes = [...notes];
+                      newNotes[selectedNoteIndices[0]] = { ...note, duration: e.target.value };
+                      addToHistory(newNotes);
+                    }}
+                  >
+                    <MenuItem value="w">Whole (1)</MenuItem>
+                    <MenuItem value="h">Half (2)</MenuItem>
+                    <MenuItem value="q">Quarter (3)</MenuItem>
+                    <MenuItem value="8">Eighth (4)</MenuItem>
+                    <MenuItem value="16">Sixteenth (5)</MenuItem>
+                    <MenuItem value="32">32nd (6)</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <FormControl fullWidth size="small">
+                  <InputLabel>Accidental</InputLabel>
+                  <Select
+                    value={note.accidental || 'none'}
+                    onChange={(e) => {
+                      const newNotes = [...notes];
+                      newNotes[selectedNoteIndices[0]] = { 
+                        ...note, 
+                        accidental: e.target.value === 'none' ? null : e.target.value 
+                      };
+                      addToHistory(newNotes);
+                    }}
+                  >
+                    <MenuItem value="none">None</MenuItem>
+                    <MenuItem value="#">Sharp (#)</MenuItem>
+                    <MenuItem value="b">Flat (b)</MenuItem>
+                    <MenuItem value="n">Natural (n)</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={note.dot || false}
+                      onChange={(e) => {
+                        const newNotes = [...notes];
+                        newNotes[selectedNoteIndices[0]] = { ...note, dot: e.target.checked };
+                        addToHistory(newNotes);
+                      }}
+                    />
+                  }
+                  label="Dotted"
+                />
+                
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={note.tie || false}
+                      onChange={(e) => {
+                        const newNotes = [...notes];
+                        newNotes[selectedNoteIndices[0]] = { ...note, tie: e.target.checked };
+                        addToHistory(newNotes);
+                      }}
+                    />
+                  }
+                  label="Tied"
+                />
+                
+                <TextField
+                  label="MIDI Note"
+                  type="number"
+                  size="small"
+                  value={note.midi}
+                  onChange={(e) => {
+                    const newNotes = [...notes];
+                    newNotes[selectedNoteIndices[0]] = { ...note, midi: parseInt(e.target.value) };
+                    addToHistory(newNotes);
+                  }}
+                  inputProps={{ min: 0, max: 127 }}
+                />
+              </Box>
+            );
+          })()}
+        </Paper>
+      )}
     </Box>
   );
 };

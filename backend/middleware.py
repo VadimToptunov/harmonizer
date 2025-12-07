@@ -24,7 +24,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path in ["/health", "/", "/docs", "/openapi.json"]:
             return await call_next(request)
         
-        client_ip = request.client.host
+        # Get client IP with fallback for production (behind reverse proxy)
+        if request.client is not None:
+            client_ip = request.client.host
+        else:
+            # Fallback: try to get IP from headers (X-Forwarded-For, X-Real-IP)
+            client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            if not client_ip:
+                client_ip = request.headers.get("X-Real-IP", "unknown")
+        
         current_time = time.time()
         
         # Clean old entries

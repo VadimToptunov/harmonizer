@@ -260,36 +260,37 @@ const SheetMusicView = ({
   };
 
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Toolbar */}
-      <Paper elevation={2}>
-        <Toolbar variant="dense">
-          <IconButton onClick={() => setUploadDialogOpen(true)}>
-            <Upload />
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5' }}>
+      {/* Compact Toolbar */}
+      <Paper elevation={1} sx={{ borderRadius: 0 }}>
+        <Toolbar variant="dense" sx={{ minHeight: '48px !important', gap: 1, px: 2 }}>
+          <IconButton size="small" onClick={() => setUploadDialogOpen(true)} title="Upload MusicXML">
+            <Upload fontSize="small" />
           </IconButton>
-          <IconButton onClick={handleExportMusicXML}>
-            <Download />
+          <IconButton size="small" onClick={handleExportMusicXML} title="Download MusicXML">
+            <Download fontSize="small" />
           </IconButton>
-          <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-          <IconButton onClick={() => setZoom(prev => Math.min(prev + 10, 200))}>
-            <ZoomIn />
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+          <IconButton size="small" onClick={() => setZoom(prev => Math.max(prev - 10, 50))} title="Zoom Out">
+            <ZoomOut fontSize="small" />
           </IconButton>
-          <IconButton onClick={() => setZoom(prev => Math.max(prev - 10, 50))}>
-            <ZoomOut />
-          </IconButton>
-          <Typography variant="body2" sx={{ mx: 1 }}>
+          <Typography variant="caption" sx={{ minWidth: '45px', textAlign: 'center' }}>
             {zoom}%
           </Typography>
-          <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-          <IconButton onClick={() => setShowSettings(true)}>
-            <Settings />
+          <IconButton size="small" onClick={() => setZoom(prev => Math.min(prev + 10, 200))} title="Zoom In">
+            <ZoomIn fontSize="small" />
+          </IconButton>
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+          <IconButton size="small" onClick={() => setShowSettings(true)} title="Settings">
+            <Settings fontSize="small" />
           </IconButton>
           <Box sx={{ flexGrow: 1 }} />
           <Button
-            variant="contained"
+            variant="outlined"
+            size="small"
             startIcon={<Save />}
             onClick={() => onSave && onSave(staffData)}
-            size="small"
+            sx={{ textTransform: 'none' }}
           >
             Save
           </Button>
@@ -297,21 +298,36 @@ const SheetMusicView = ({
       </Paper>
 
       {/* Main content */}
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-        <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} sx={{ mb: 2 }}>
+      <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+        <Tabs 
+          value={activeTab} 
+          onChange={(e, v) => setActiveTab(v)} 
+          sx={{ 
+            mb: 3,
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 500,
+              minHeight: 48
+            }
+          }}
+        >
           <Tab label="Edit" />
           <Tab label="Harmonic Functions" />
           <Tab label="View" />
         </Tabs>
 
         {activeTab === 0 && (
-          <Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* Playback Controller */}
-            <PlaybackController 
-              notes={staffData.staff2.voices.bass}
-              tempo={tempo}
-              clef="bass"
-            />
+            <Paper elevation={0} sx={{ p: 2, bgcolor: 'white', borderRadius: 2 }}>
+              <PlaybackController 
+                notes={staffData.staff2.voices.bass}
+                tempo={tempo}
+                clef="bass"
+              />
+            </Paper>
 
             {/* Staff 1 - Treble (Soprano & Alto) */}
             {staffCount === 4 && (
@@ -360,32 +376,42 @@ const SheetMusicView = ({
                 measures={measures}
               />
             )}
-            <EnhancedStaffEditor
-              staffId="bass"
-              clef="bass"
-              keySignature={keySignature}
-              timeSignature={timeSignature}
-              notes={staffData.staff2.voices.bass}
-              onNotesChange={(notes) => handleStaffNotesChange('staff2', 'bass', notes)}
-              onKeySignatureChange={setKeySignature}
-              staffLabel="Bass"
-              showLabels={true}
-              measures={measures}
-            />
+            <Paper elevation={0} sx={{ p: 2, bgcolor: 'white', borderRadius: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.secondary' }}>
+                Bass
+              </Typography>
+              <EnhancedStaffEditor
+                staffId="bass"
+                clef="bass"
+                keySignature={keySignature}
+                timeSignature={timeSignature}
+                notes={staffData.staff2.voices.bass}
+                onNotesChange={(notes) => handleStaffNotesChange('staff2', 'bass', notes)}
+                onKeySignatureChange={setKeySignature}
+                staffLabel=""
+                showLabels={false}
+                measures={measures}
+              />
+            </Paper>
             
             {/* Direction Editor for figured bass and Roman numerals */}
-            <DirectionEditor
-              directions={directions}
-              onDirectionsChange={setDirections}
-              staff={2}
-            />
+            <Paper elevation={0} sx={{ p: 2, bgcolor: 'white', borderRadius: 2 }}>
+              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                Directions (Roman Numerals / Figured Bass)
+              </Typography>
+              <DirectionEditor
+                directions={directions}
+                onDirectionsChange={setDirections}
+                staff={2}
+              />
+            </Paper>
           </Box>
         )}
 
         {activeTab === 1 && (
           <Box>
-            <Paper sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h6" gutterBottom>
+            <Paper elevation={0} sx={{ p: 3, mb: 2, bgcolor: 'white', borderRadius: 2 }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
                 Harmonic Functions Editor
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
