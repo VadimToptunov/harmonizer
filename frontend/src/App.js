@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
+import React, { useState, lazy, Suspense } from 'react';
+import { AppBar, Toolbar, Typography, Box, Button, CircularProgress } from '@mui/material';
 import { Save } from '@mui/icons-material';
-import SheetMusicView from './components/SheetMusicView';
 import './App.css';
+
+// Lazy load heavy components for better initial load time
+const SheetMusicView = lazy(() => import('./components/SheetMusicView'));
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -98,7 +100,12 @@ function App() {
       </AppBar>
       
       <Box sx={{ flex: 1, overflow: 'hidden' }}>
-        <SheetMusicView
+        <Suspense fallback={
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <CircularProgress />
+          </Box>
+        }>
+          <SheetMusicView
           showRomanNumerals={showRomanNumerals}
           showInversions={showInversions}
           showFiguredBass={showFiguredBass}
@@ -106,6 +113,7 @@ function App() {
           onSave={handleSave}
           onExport={handleExport}
         />
+        </Suspense>
       </Box>
     </div>
   );

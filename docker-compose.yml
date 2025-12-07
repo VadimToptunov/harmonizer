@@ -13,6 +13,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
+      # Enable BuildKit for faster builds
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     container_name: harmony-backend
     ports:
       - "8000:8000"
@@ -22,10 +25,19 @@ services:
       - PYTHONUNBUFFERED=1
       - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=development
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONOPTIMIZE=1
     depends_on:
       - redis
     networks:
       - harmony-network
+    # Health check for faster container startup detection
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   frontend:
     build:

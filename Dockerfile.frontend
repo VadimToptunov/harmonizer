@@ -2,11 +2,12 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY frontend/package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies with npm ci for faster, reliable builds
+RUN npm ci --only=production=false && \
+    npm cache clean --force
 
 # Copy frontend code
 COPY frontend/ .
@@ -14,6 +15,6 @@ COPY frontend/ .
 # Expose port
 EXPOSE 3000
 
-# Start development server
+# Start development server with optimized settings
 CMD ["npm", "start"]
 

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
+import { CircularProgress, Box } from '@mui/material';
 import {
   Box,
   Paper,
@@ -27,15 +28,17 @@ import {
   PlayArrow,
   Stop
 } from '@mui/icons-material';
-import EnhancedStaffEditor from './EnhancedStaffEditor';
-import AdvancedMusicEditor from './AdvancedMusicEditor';
-import ProfessionalMusicEditor from './ProfessionalMusicEditor';
-import DirectionEditor from './DirectionEditor';
-import PlaybackController from './PlaybackController';
-import KeySignatureSelector from './KeySignatureSelector';
-import HarmonicFunctionEditor from './HarmonicFunctionEditor';
+// Lazy load heavy components
+import { lazy } from 'react';
+const EnhancedStaffEditor = lazy(() => import('./EnhancedStaffEditor'));
+const AdvancedMusicEditor = lazy(() => import('./AdvancedMusicEditor'));
+const ProfessionalMusicEditor = lazy(() => import('./ProfessionalMusicEditor'));
+const DirectionEditor = lazy(() => import('./DirectionEditor'));
+const PlaybackController = lazy(() => import('./PlaybackController'));
+const KeySignatureSelector = lazy(() => import('./KeySignatureSelector'));
+const HarmonicFunctionEditor = lazy(() => import('./HarmonicFunctionEditor'));
+const SheetMusicDisplay = lazy(() => import('./SheetMusicDisplay'));
 import { parseMusicXML, organizeNotesForRendering } from './MusicXMLParser';
-import SheetMusicDisplay from './SheetMusicDisplay';
 
 /**
  * Main sheet music view - Professional music editor interface
@@ -322,17 +325,20 @@ const SheetMusicView = ({
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* Playback Controller */}
             <Paper elevation={0} sx={{ p: 2, bgcolor: 'white', borderRadius: 2 }}>
-              <PlaybackController 
-                notes={staffData.staff2.voices.bass}
-                tempo={tempo}
-                clef="bass"
-              />
+              <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>}>
+                <PlaybackController 
+                  notes={staffData.staff2.voices.bass}
+                  tempo={tempo}
+                  clef="bass"
+                />
+              </Suspense>
             </Paper>
 
             {/* Staff 1 - Treble (Soprano & Alto) */}
             {staffCount === 4 && (
               <>
-                <ProfessionalMusicEditor
+                <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>}>
+                  <ProfessionalMusicEditor
                   staffId="soprano"
                   clef="treble"
                   keySignature={keySignature}
@@ -345,7 +351,9 @@ const SheetMusicView = ({
                   measures={measures}
                   tempo={tempo}
                 />
-                <ProfessionalMusicEditor
+                </Suspense>
+                <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>}>
+                  <ProfessionalMusicEditor
                   staffId="alto"
                   clef="treble"
                   keySignature={keySignature}
@@ -358,12 +366,14 @@ const SheetMusicView = ({
                   measures={measures}
                   tempo={tempo}
                 />
+                </Suspense>
               </>
             )}
 
             {/* Staff 2 - Bass (Tenor & Bass) */}
             {staffCount === 4 && (
-              <EnhancedStaffEditor
+              <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>}>
+                <EnhancedStaffEditor
                 staffId="tenor"
                 clef="treble"
                 keySignature={keySignature}
@@ -375,12 +385,14 @@ const SheetMusicView = ({
                 showLabels={true}
                 measures={measures}
               />
+              </Suspense>
             )}
             <Paper elevation={0} sx={{ p: 2, bgcolor: 'white', borderRadius: 2 }}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.secondary' }}>
                 Bass
               </Typography>
-              <EnhancedStaffEditor
+              <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>}>
+                <EnhancedStaffEditor
                 staffId="bass"
                 clef="bass"
                 keySignature={keySignature}
@@ -392,6 +404,7 @@ const SheetMusicView = ({
                 showLabels={false}
                 measures={measures}
               />
+              </Suspense>
             </Paper>
             
             {/* Direction Editor for figured bass and Roman numerals */}
@@ -399,7 +412,8 @@ const SheetMusicView = ({
               <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
                 Directions (Roman Numerals / Figured Bass)
               </Typography>
-              <DirectionEditor
+              <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>}>
+                <DirectionEditor
                 directions={directions}
                 onDirectionsChange={setDirections}
                 staff={2}
@@ -417,11 +431,13 @@ const SheetMusicView = ({
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Enter harmonic functions using notation like T{'{'}{'}'}, D{'{'}extra: 7{'}'}, S{'{'}position: 3{'}'}
               </Typography>
-              <HarmonicFunctionEditor
-                value={harmonicFunctions}
-                onChange={setHarmonicFunctions}
-                keySignature={keySignature}
-              />
+              <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>}>
+                <HarmonicFunctionEditor
+                  value={harmonicFunctions}
+                  onChange={setHarmonicFunctions}
+                  keySignature={keySignature}
+                />
+              </Suspense>
             </Paper>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Button
@@ -461,13 +477,15 @@ const SheetMusicView = ({
         )}
 
         {activeTab === 2 && loadedMusicData && (
-          <SheetMusicDisplay
-            musicData={loadedMusicData}
-            showRomanNumerals={showRomanNumerals}
-            showInversions={showInversions}
-            showFiguredBass={showFiguredBass}
-            width={800 * (zoom / 100)}
-          />
+          <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>}>
+            <SheetMusicDisplay
+              musicData={loadedMusicData}
+              showRomanNumerals={showRomanNumerals}
+              showInversions={showInversions}
+              showFiguredBass={showFiguredBass}
+              width={800 * (zoom / 100)}
+            />
+          </Suspense>
         )}
       </Box>
 

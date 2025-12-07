@@ -383,13 +383,16 @@ const ProfessionalMusicEditor = ({
       midi = baseMidi + lineNumber;
     } else if (clef === 'alto') {
       // Alto clef: C4 (MIDI 60) is on middle line (line 2)
+      // lineNumber is in semitone units (spaceHeight = 5px per semitone)
+      // Middle line is at 2 * lineSpacing = 20px = 4 * spaceHeight
       const baseMidi = 60; // C4 on middle line
-      const baseLine = 2; // Middle line
+      const baseLine = 4; // Middle line in semitone units (2 * lineSpacing / spaceHeight = 4)
       midi = baseMidi + (lineNumber - baseLine);
     } else if (clef === 'tenor') {
       // Tenor clef: C4 (MIDI 60) is on 4th line
+      // 4th line is at 4 * lineSpacing = 40px = 8 * spaceHeight
       const baseMidi = 60; // C4 on 4th line
-      const baseLine = 4;
+      const baseLine = 8; // 4th line in semitone units (4 * lineSpacing / spaceHeight = 8)
       midi = baseMidi + (lineNumber - baseLine);
     } else {
       // Treble clef: E4 (MIDI 64) is on first line (top line)
@@ -700,10 +703,11 @@ const ProfessionalMusicEditor = ({
       
       // Remove previous handlers if they exist
       if (eventHandlersRef.current.handlers && eventHandlersRef.current.svg) {
-        const { handleMouseMove, handleMouseLeave, handleClick } = eventHandlersRef.current.handlers;
+        const { handleMouseMove, handleMouseLeave, handleClick, handleContextMenu } = eventHandlersRef.current.handlers;
         eventHandlersRef.current.svg.removeEventListener('mousemove', handleMouseMove);
         eventHandlersRef.current.svg.removeEventListener('mouseleave', handleMouseLeave);
         eventHandlersRef.current.svg.removeEventListener('click', handleClick);
+        eventHandlersRef.current.svg.removeEventListener('contextmenu', handleContextMenu);
       }
       
       svg.style.cursor = 'crosshair';

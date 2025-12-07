@@ -44,13 +44,14 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./frontend
-        run: npm install
+        run: npm ci --prefer-offline --no-audit
 
       - name: Build
         working-directory: ./frontend
         env:
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'http://localhost:8000' }}
           CI: false
+          NODE_ENV: production
         run: npm run build
 
       - name: Setup Pages

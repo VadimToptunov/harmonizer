@@ -6,21 +6,37 @@ import json
 from typing import Optional, Dict, List
 import redis
 import os
+from functools import lru_cache
 
-# Redis connection
+# Redis connection pool for better performance
+redis_pool = None
 redis_client = None
 
+def get_redis_pool():
+    """Get or create Redis connection pool."""
+    global redis_pool
+    if redis_pool is None:
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+        redis_pool = redis.ConnectionPool.from_url(
+            redis_url,
+            decode_responses=True,
+            max_connections=50,
+            retry_on_timeout=True
+        )
+    return redis_pool
+
 def get_redis_client():
-    """Get or create Redis client."""
+    """Get or create Redis client with connection pooling."""
     global redis_client
     if redis_client is None:
-        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
-        redis_client = redis.from_url(redis_url, decode_responses=True)
+        pool = get_redis_pool()
+        redis_client = redis.Redis(connection_pool=pool)
     return redis_client
 
 
+@lru_cache(maxsize=1000)
 def cache_key(operation: str, **kwargs) -> str:
-    """Generate cache key from operation and parameters."""
+    """Generate cache key from operation and parameters (memoized)."""
     key_data = {
         'operation': operation,
         **kwargs
