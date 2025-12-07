@@ -8,7 +8,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: vadimtoptunov/harmonizer
 
 jobs:
   build-and-push:
@@ -20,6 +19,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set image name to lowercase
+        id: image-name
+        run: echo "name=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -38,7 +41,7 @@ jobs:
           file: ./Dockerfile.production
           target: backend
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:latest
+          tags: ${{ env.REGISTRY }}/${{ steps.image-name.outputs.name }}-backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
