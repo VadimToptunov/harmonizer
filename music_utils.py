@@ -34,6 +34,41 @@ def pitch_class_to_name(pc: int) -> str:
     return names[pc]
 
 
+def midi_to_note_name(midi: int) -> str:
+    """Convert MIDI note to note name (e.g., 60 -> 'C4')."""
+    note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+    octave = (midi // 12) - 1
+    note = note_names[midi % 12]
+    return f"{note}{octave}"
+
+
+def note_name_to_midi(name: str) -> int:
+    """Convert note name to MIDI (e.g., 'C4' -> 60, 'Db4' -> 61)."""
+    note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+    flat_to_sharp = {'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#'}
+    
+    # Parse note name (e.g., "C4", "C#4", "Db4")
+    import re
+    match = re.match(r'([A-G]#?b?)(\d+)', name)
+    if not match:
+        return 60  # Default to C4
+    
+    note_name = match.group(1)
+    octave = int(match.group(2))
+    
+    # Handle flats
+    if note_name in flat_to_sharp:
+        note_name = flat_to_sharp[note_name]
+    
+    # Find note index
+    if note_name in note_names:
+        note_index = note_names.index(note_name)
+    else:
+        return 60  # Default to C4
+    
+    return (octave + 1) * 12 + note_index
+
+
 def get_interval_semitones(note1: int, note2: int) -> int:
     """Returns interval in semitones between two MIDI notes."""
     return abs(note2 - note1)

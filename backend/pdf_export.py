@@ -68,6 +68,12 @@ def export_harmony_to_pdf(voices_list: List[Dict], settings: Dict, output_path: 
             
             # Notes
             notes = voices.get(voice_name, [])
+            # Handle both single note (int) and list of notes
+            if isinstance(notes, int):
+                notes = [notes]
+            elif not isinstance(notes, list):
+                notes = []
+            
             if notes:
                 x_start = 100
                 note_spacing = (width - 150) / max(len(notes), 1)

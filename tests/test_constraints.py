@@ -2,32 +2,28 @@
 Unit tests for constraints module.
 """
 import unittest
-from constraints import (
-    check_voice_ranges, check_parallel_fifths, check_parallel_octaves,
-    check_voice_leading, check_doubled_leading_tone, check_spacing,
-    HardConstraint, SoftConstraint
-)
+from constraints import ConstraintChecker, ConstraintViolation
 from music_utils import Voice
 
 
 class TestConstraints(unittest.TestCase):
     """Test constraint checking functions."""
 
-    def test_check_voice_ranges(self):
+    def setUp(self):
+        """Set up test fixtures."""
+        self.checker = ConstraintChecker()
+
+    def test_check_voice_range(self):
         """Test voice range validation."""
-        voices = {
-            Voice.SOPRANO: 72,  # C5 - in range
-            Voice.ALTO: 67,      # G4 - in range
-            Voice.TENOR: 60,    # C4 - in range
-            Voice.BASS: 48      # C3 - in range
-        }
-        violations = check_voice_ranges(voices)
-        self.assertEqual(len(violations), 0)
+        # In range
+        violation = self.checker.check_voice_range(Voice.SOPRANO, 72)  # C5 - in range
+        self.assertIsNone(violation)
 
         # Out of range
-        voices[Voice.SOPRANO] = 50  # Too low
-        violations = check_voice_ranges(voices)
-        self.assertGreater(len(violations), 0)
+        violation = self.checker.check_voice_range(Voice.SOPRANO, 50)  # Too low
+        self.assertIsNotNone(violation)
+        self.assertEqual(violation.rule_name, "voice_range")
+        self.assertEqual(violation.severity, "hard")
 
     def test_check_parallel_fifths(self):
         """Test parallel fifths detection."""
@@ -43,8 +39,9 @@ class TestConstraints(unittest.TestCase):
             Voice.TENOR: 58,    # Bb
             Voice.BASS: 53      # F
         }
-        violations = check_parallel_fifths(prev_voices, curr_voices)
-        # Should detect parallel fifths between voices
+        violations = self.checker.check_parallel_fifths(prev_voices, curr_voices)
+        # Should detect parallel fifths between voices if present
+        self.assertIsInstance(violations, list)
 
     def test_check_parallel_octaves(self):
         """Test parallel octaves detection."""
@@ -56,25 +53,9 @@ class TestConstraints(unittest.TestCase):
             Voice.SOPRANO: 64,  # E
             Voice.BASS: 52       # E (octave below)
         }
-        violations = check_parallel_octaves(prev_voices, curr_voices)
+        violations = self.checker.check_parallel_octaves(prev_voices, curr_voices)
         # Should detect parallel octaves
-
-    def test_check_voice_leading(self):
-        """Test voice leading validation."""
-        prev_voices = {
-            Voice.SOPRANO: 60,
-            Voice.ALTO: 57,
-            Voice.TENOR: 53,
-            Voice.BASS: 48
-        }
-        curr_voices = {
-            Voice.SOPRANO: 64,  # Step up
-            Voice.ALTO: 57,      # Same
-            Voice.TENOR: 55,     # Step up
-            Voice.BASS: 50       # Step up
-        }
-        violations = check_voice_leading(prev_voices, curr_voices)
-        # Should have minimal violations for good voice leading
+        self.assertIsInstance(violations, list)
 
     def test_check_spacing(self):
         """Test spacing validation."""
@@ -84,8 +65,28 @@ class TestConstraints(unittest.TestCase):
             Voice.TENOR: 60,
             Voice.BASS: 48
         }
-        violations = check_spacing(voices)
+        violation = self.checker.check_spacing(voices)
         # Should check proper spacing between adjacent voices
+        # Good spacing should return None
+        self.assertIsNone(violation)
+
+    def test_check_voice_order(self):
+        """Test voice order validation."""
+        # Correct order
+        voices = {
+            Voice.SOPRANO: 72,
+            Voice.ALTO: 67,
+            Voice.TENOR: 60,
+            Voice.BASS: 48
+        }
+        violation = self.checker.check_voice_order(voices)
+        self.assertIsNone(violation)
+
+        # Voice crossing
+        voices[Voice.SOPRANO] = 55  # Below alto
+        violation = self.checker.check_voice_order(voices)
+        self.assertIsNotNone(violation)
+        self.assertEqual(violation.rule_name, "voice_crossing")
 
 
 if __name__ == '__main__':

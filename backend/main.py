@@ -3,7 +3,7 @@ FastAPI backend for harmony exercise solver.
 """
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import sys
@@ -299,7 +299,7 @@ async def check_errors(request: ErrorCheckRequest):
 async def export_pdf(request: Dict):
     """Export harmony to PDF."""
     try:
-        from pdf_export import export_to_pdf_bytes
+        from backend.pdf_export import export_to_pdf_bytes
         from fastapi.responses import Response
         
         voices_list = request.get("voices", [])

@@ -2,9 +2,8 @@
 Unit tests for solver module.
 """
 import unittest
-from solver import Solver, Solution
+from solver import BeamSearchSolver, Solution
 from music_utils import Voice
-from constraints import HardConstraint, SoftConstraint
 
 
 class TestSolver(unittest.TestCase):
@@ -12,7 +11,7 @@ class TestSolver(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.solver = Solver()
+        self.solver = BeamSearchSolver()
 
     def test_solve_step(self):
         """Test solving a single step."""
