@@ -35,14 +35,27 @@ app = FastAPI(
 )
 
 # CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[FRONTEND_URL, "http://localhost:3000", "https://*.github.io"] if ENVIRONMENT == "production" else ["*"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
-    max_age=3600
-)
+if ENVIRONMENT == "production":
+    # For production, use regex for GitHub Pages subdomains
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[FRONTEND_URL, "http://localhost:3000"],
+        allow_origin_regex=r"https://.*\.github\.io",
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
+        max_age=3600
+    )
+else:
+    # For development, allow all origins
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
+        max_age=3600
+    )
 
 # Rate limiting and monitoring
 if ENVIRONMENT == "production":
@@ -256,28 +269,127 @@ async def counterpoint(request: CounterpointRequest):
 
 
 @app.post("/api/check-errors")
-async def check_errors(request: ErrorCheckRequest):
-    """Check for errors in harmony."""
+async def check_errors(request: Dict):
+    """Enhanced error checking with detailed reports."""
     try:
-        from exercises import ErrorCorrector
+        from enhanced_validator import EnhancedValidator
         from music_utils import Voice
         
-        # Convert request format to internal format
-        voices = []
-        for v_dict in request.voices:
-            voices.append({
-                Voice.SOPRANO: v_dict.get("S", 0),
-                Voice.ALTO: v_dict.get("A", 0),
-                Voice.TENOR: v_dict.get("T", 0),
-                Voice.BASS: v_dict.get("B", 0)
-            })
+        voices_list = request.get("voices", [])
         
-        corrector = ErrorCorrector()
-        errors = corrector.find_errors(voices)
-        corrected = corrector.correct_errors(voices, errors)
+        # Convert to internal format
+        internal_voices = []
+        for voice_dict in voices_list:
+            # Initialize all four voices with default value 0 to maintain backward compatibility
+            internal_voice = {
+                Voice.SOPRANO: voice_dict.get("S", 0),
+                Voice.ALTO: voice_dict.get("A", 0),
+                Voice.TENOR: voice_dict.get("T", 0),
+                Voice.BASS: voice_dict.get("B", 0)
+            }
+            internal_voices.append(internal_voice)
         
+        validator = EnhancedValidator()
+        result = validator.validate_harmony(internal_voices)
+        
+        return JSONResponse(content={
+            "success": True,
+            "valid": result["valid"],
+            "errors": result["errors"],
+            "warnings": result["warnings"],
+            "summary": result["summary"],
+            "summary_text": validator.get_error_summary_text(result)
+        })
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/harmonize-functions")
+async def harmonize_functions(request: Dict):
+    """Harmonize using harmonic functions (T, S, D notation)."""
+    try:
+        from harmonic_functions import parse_harmonic_sequence
+        from prechecker import Prechecker
+        from corrector import Corrector
+        from solver import BeamSearchSolver
+        
+        functions_str = request.get("functions", [])
+        key_signature = request.get("key_signature", "C")
+        
+        # Convert key signature to pitch class
+        key_map = {
+            'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5, 'F#': 6,
+            'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11,
+            'Db': 1, 'Eb': 3, 'Gb': 6, 'Ab': 8, 'Bb': 10
+        }
+        key_pc = key_map.get(key_signature, 0)
+        
+        # Parse harmonic functions
+        sequence_str = "; ".join(functions_str)
+        functions = parse_harmonic_sequence(sequence_str, key_pc)
+        
+        if not functions:
+            return JSONResponse(
+                content={"success": False, "error": "No valid harmonic functions"},
+                status_code=400
+            )
+        
+        # Precheck
+        prechecker = Prechecker()
+        errors = prechecker.check_sequence(functions)
+        if errors:
+            return JSONResponse(
+                content={
+                    "success": False,
+                    "error": "Precheck failed",
+                    "errors": errors
+                },
+                status_code=400
+            )
+        
+        # Correct
+        corrector = Corrector()
+        corrected_functions = corrector.correct_sequence(functions)
+        
+        # Solve
+        solver = BeamSearchSolver()
+        solutions = []
+        prev_solutions = []
+        
+        for func in corrected_functions:
+            # Get bass note from function
+            bass_pc = func.get_bass_note_pc()
+            # Convert to MIDI (assume octave 3 for bass)
+            bass_midi = 48 + bass_pc  # C3 = 48
+            
+            # Determine chord type
+            chord_type = "major"
+            if func.is_minor:
+                chord_type = "minor"
+            elif func.func_type.value == "D" and func.extra and 7 in func.extra:
+                chord_type = "dominant7"
+            
+            step_solutions = solver.solve_step(bass_midi, prev_solutions, chord_type)
+            if step_solutions:
+                best = step_solutions[0]
+                solutions.append(best.voices)
+                prev_solutions = step_solutions[:1]
+            else:
+                # Fallback
+                fallback_voices = {
+                    Voice.SOPRANO: bass_midi + 12,
+                    Voice.ALTO: bass_midi + 7,
+                    Voice.TENOR: bass_midi + 4,
+                    Voice.BASS: bass_midi
+                }
+                solutions.append(fallback_voices)
+                from solver import Solution
+                prev_solutions = [Solution(voices=fallback_voices, score=100.0, violations=[])]
+        
+        # Convert to response format
         result = []
-        for sol in corrected:
+        for sol in solutions:
             result.append({
                 "S": sol.get(Voice.SOPRANO, 0),
                 "A": sol.get(Voice.ALTO, 0),
@@ -285,11 +397,11 @@ async def check_errors(request: ErrorCheckRequest):
                 "B": sol.get(Voice.BASS, 0)
             })
         
-        return {
+        return JSONResponse(content={
             "success": True,
-            "errors": errors,
-            "corrected": result
-        }
+            "voices": result,
+            "explanations": "Harmonization from harmonic functions completed."
+        })
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -291,7 +291,7 @@ const AdvancedMusicEditor = ({
     if (containerRef.current) {
       renderStaff();
     }
-  }, [notes, clef, keySignature, timeSignature, selectedNoteIndices, measures, zoom, showGrid]);
+  }, [notes, clef, keySignature, timeSignature, selectedNoteIndices, measures, zoom, showGrid, currentDuration, currentDot, currentTie]);
 
   const renderStaff = () => {
     const container = containerRef.current;

@@ -3,6 +3,7 @@ import { Paper, Box, Typography, IconButton, Tooltip } from '@mui/material';
 import { Undo, Redo, ContentCopy, ContentPaste, Restore } from '@mui/icons-material';
 import Vex from 'vexflow';
 import NoteDurationButton from './NoteDurationButton';
+import KeySignatureSelector from './KeySignatureSelector';
 
 /**
  * Enhanced staff editor with drag & drop, copy/paste, undo/redo, measures, rests, ties, dynamics, playback
@@ -89,7 +90,7 @@ const EnhancedStaffEditor = ({
     if (containerRef.current) {
       renderStaff();
     }
-  }, [notes, clef, keySignature, timeSignature, selectedNoteIndex, measures]);
+  }, [notes, clef, keySignature, timeSignature, selectedNoteIndex, measures, currentDuration]);
 
   const renderStaff = () => {
     const container = containerRef.current;
@@ -105,13 +106,27 @@ const EnhancedStaffEditor = ({
 
     const [beats, beatType] = timeSignature.split('/');
     const beatsPerMeasure = parseInt(beats);
-    const staffWidth = 700;
-    const measureWidth = staffWidth / measures;
+    
+    // Adaptive staff width based on content
+    const minNoteWidth = 40; // Minimum width per note
+    const baseWidth = 200; // Base width for clef, key, time signature
+    const calculatedWidth = Math.max(
+      baseWidth + (notes.length * minNoteWidth),
+      500 // Minimum total width
+    );
+    const staffWidth = Math.min(calculatedWidth, container.offsetWidth - 40 || 1200);
+    const measureWidth = staffWidth / Math.max(measures, 1);
 
-    // Render multiple measures
-    for (let measure = 0; measure < measures; measure++) {
-      const xPos = 10 + measure * measureWidth;
-      const stave = new Stave(xPos, 40, measureWidth - 20);
+      // Auto-calculate measures if not specified
+      const calculatedMeasures = Math.max(
+        measures,
+        Math.ceil(notes.length / 4) // At least 4 notes per measure
+      );
+      
+      // Render multiple measures
+      for (let measure = 0; measure < calculatedMeasures; measure++) {
+        const xPos = 10 + measure * measureWidth;
+        const stave = new Stave(xPos, 40, measureWidth - 20);
       
       if (measure === 0) {
         // Add clef only on first measure
@@ -153,8 +168,8 @@ const EnhancedStaffEditor = ({
 
       stave.setContext(context).draw();
 
-      // Get notes for this measure
-      const notesPerMeasure = Math.ceil(notes.length / measures);
+      // Get notes for this measure - adaptive distribution
+      const notesPerMeasure = Math.ceil(notes.length / calculatedMeasures);
       const measureStart = measure * notesPerMeasure;
       const measureEnd = Math.min((measure + 1) * notesPerMeasure, notes.length);
       const measureNotes = notes.slice(measureStart, measureEnd);
@@ -312,7 +327,10 @@ const EnhancedStaffEditor = ({
       }
     }
 
-    renderer.resize(720, 150);
+    // Adaptive height based on clef and content
+    const staffHeight = clef === 'bass' ? 180 : 160;
+    const totalHeight = staffHeight + (showLabels ? 40 : 0);
+    renderer.resize(staffWidth + 20, totalHeight);
   };
 
   const handleStaffClick = (event) => {

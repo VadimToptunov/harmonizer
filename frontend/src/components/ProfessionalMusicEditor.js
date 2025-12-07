@@ -34,6 +34,7 @@ const ProfessionalMusicEditor = ({
   instrument = null
 }) => {
   const containerRef = useRef(null);
+  const eventHandlersRef = useRef({ handlers: null, svg: null });
   
   // Selection
   const [selectedNoteIndices, setSelectedNoteIndices] = useState([]);
@@ -350,19 +351,71 @@ const ProfessionalMusicEditor = ({
   }, []);
 
   const yToMidi = useCallback((y, clef) => {
+    // More precise calculation for note placement
     const staffTop = 40;
-    const lineSpacing = 10;
+    const lineSpacing = 10; // VexFlow default line spacing
+    const spaceHeight = lineSpacing / 2; // Half line = one semitone
+    
+    // Account for zoom
     const relativeY = (y - staffTop) / (zoom / 100);
-    const lineNumber = Math.round(relativeY / (lineSpacing / 2));
+    
+    // Calculate which line/space (0 = top line, negative = above, positive = below)
+    const lineNumber = Math.round(relativeY / spaceHeight);
     
     let midi;
     if (clef === 'bass') {
-      midi = 48 + (lineNumber - 0) * 0.5;
+      // Bass clef: F3 (MIDI 53) is on 4th line
+      // Line 0 = C3 (MIDI 48), line 4 = F3 (MIDI 53)
+      const baseMidi = 48; // C3
+      const baseLine = 0;
+      midi = baseMidi + (lineNumber - baseLine) * 0.5;
+    } else if (clef === 'alto') {
+      // Alto clef: C4 (MIDI 60) is on middle line
+      const baseMidi = 60; // C4
+      const baseLine = 2; // Middle line
+      midi = baseMidi + (lineNumber - baseLine) * 0.5;
+    } else if (clef === 'tenor') {
+      // Tenor clef: C4 (MIDI 60) is on 4th line
+      const baseMidi = 60; // C4
+      const baseLine = 4;
+      midi = baseMidi + (lineNumber - baseLine) * 0.5;
     } else {
-      midi = 64 + (lineNumber - 0) * 0.5;
+      // Treble clef: E4 (MIDI 64) is on first line
+      // Line 0 = E4 (MIDI 64), line 4 = G4 (MIDI 67)
+      const baseMidi = 64; // E4
+      const baseLine = 0;
+      midi = baseMidi + (lineNumber - baseLine) * 0.5;
     }
     
     return Math.max(21, Math.min(108, Math.round(midi)));
+  }, [zoom]);
+  
+  // Get note position on staff for visual feedback
+  const midiToY = useCallback((midi, clef) => {
+    const staffTop = 40;
+    const lineSpacing = 10;
+    const spaceHeight = lineSpacing / 2;
+    
+    let lineNumber;
+    if (clef === 'bass') {
+      const baseMidi = 48;
+      const baseLine = 0;
+      lineNumber = baseLine + (midi - baseMidi) * 2;
+    } else if (clef === 'alto') {
+      const baseMidi = 60;
+      const baseLine = 2;
+      lineNumber = baseLine + (midi - baseMidi) * 2;
+    } else if (clef === 'tenor') {
+      const baseMidi = 60;
+      const baseLine = 4;
+      lineNumber = baseLine + (midi - baseMidi) * 2;
+    } else {
+      const baseMidi = 64;
+      const baseLine = 0;
+      lineNumber = baseLine + (midi - baseMidi) * 2;
+    }
+    
+    return staffTop + (lineNumber * spaceHeight) * (zoom / 100);
   }, [zoom]);
 
   // Render staff with all advanced features
@@ -590,8 +643,202 @@ const ProfessionalMusicEditor = ({
       }
     }
 
+    // Note: Event handlers are added in a separate useEffect to prevent memory leaks
+
     renderer.resize(720 * (zoom / 100), 150 * (zoom / 100));
   }, [notes, clef, keySignature, timeSignature, selectedNoteIndices, measures, zoom, showGrid, autoBeam, currentDuration, currentDot, currentTie, currentArticulation, readOnly, groupNotesForBeaming, getAutoAccidental, midiToVexFlowNote]);
+
+  // Add interactive handlers for intuitive note input - separate useEffect to prevent memory leaks
+  useEffect(() => {
+    if (readOnly || !containerRef.current) return;
+    
+    // Wait for SVG to be rendered
+    const timeoutId = setTimeout(() => {
+      const container = containerRef.current;
+      if (!container) return;
+      
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+      
+      // Remove previous handlers if they exist
+      if (eventHandlersRef.current.handlers && eventHandlersRef.current.svg) {
+        const { handleMouseMove, handleMouseLeave, handleClick } = eventHandlersRef.current.handlers;
+        eventHandlersRef.current.svg.removeEventListener('mousemove', handleMouseMove);
+        eventHandlersRef.current.svg.removeEventListener('mouseleave', handleMouseLeave);
+        eventHandlersRef.current.svg.removeEventListener('click', handleClick);
+      }
+      
+      svg.style.cursor = 'crosshair';
+      
+      // Visual feedback on hover
+      let hoverLine = null;
+      let hoverNoteLabel = null;
+      
+      const handleMouseMove = (e) => {
+        const rect = container.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / (zoom / 100);
+        const y = (e.clientY - rect.top) / (zoom / 100);
+        
+        // Only show feedback in staff area
+        if (y >= 30 && y <= 120) {
+          const midi = yToMidi(y, clef);
+          const noteY = midiToY(midi, clef);
+          const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+          const octave = Math.floor(midi / 12) - 1;
+          const noteName = noteNames[midi % 12];
+          const fullNoteName = `${noteName}${octave}`;
+          
+          // Remove old indicators
+          if (hoverLine) hoverLine.remove();
+          if (hoverNoteLabel) {
+            if (hoverNoteLabel._bg) hoverNoteLabel._bg.remove();
+            hoverNoteLabel.remove();
+          }
+          
+          // Create hover line
+          hoverLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          hoverLine.setAttribute('x1', '10');
+          hoverLine.setAttribute('x2', '700');
+          hoverLine.setAttribute('y1', noteY);
+          hoverLine.setAttribute('y2', noteY);
+          hoverLine.setAttribute('stroke', '#2196F3');
+          hoverLine.setAttribute('stroke-width', '3');
+          hoverLine.setAttribute('stroke-dasharray', '8,4');
+          hoverLine.setAttribute('opacity', '0.8');
+          hoverLine.setAttribute('pointer-events', 'none');
+          svg.appendChild(hoverLine);
+          
+          // Create note name label
+          const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          labelBg.setAttribute('x', '10');
+          labelBg.setAttribute('y', noteY - 18);
+          labelBg.setAttribute('width', '60');
+          labelBg.setAttribute('height', '16');
+          labelBg.setAttribute('fill', 'white');
+          labelBg.setAttribute('stroke', '#2196F3');
+          labelBg.setAttribute('stroke-width', '1');
+          labelBg.setAttribute('rx', '3');
+          labelBg.setAttribute('opacity', '0.9');
+          labelBg.setAttribute('pointer-events', 'none');
+          svg.appendChild(labelBg);
+          
+          hoverNoteLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          hoverNoteLabel.setAttribute('x', '15');
+          hoverNoteLabel.setAttribute('y', noteY - 5);
+          hoverNoteLabel.setAttribute('fill', '#2196F3');
+          hoverNoteLabel.setAttribute('font-size', '13');
+          hoverNoteLabel.setAttribute('font-weight', 'bold');
+          hoverNoteLabel.setAttribute('pointer-events', 'none');
+          hoverNoteLabel.textContent = fullNoteName;
+          svg.appendChild(hoverNoteLabel);
+          hoverNoteLabel._bg = labelBg;
+        } else {
+          if (hoverLine) { hoverLine.remove(); hoverLine = null; }
+          if (hoverNoteLabel) { 
+            if (hoverNoteLabel._bg) hoverNoteLabel._bg.remove();
+            hoverNoteLabel.remove(); 
+            hoverNoteLabel = null; 
+          }
+        }
+      };
+      
+      const handleMouseLeave = () => {
+        if (hoverLine) { hoverLine.remove(); hoverLine = null; }
+        if (hoverNoteLabel) { 
+          if (hoverNoteLabel._bg) hoverNoteLabel._bg.remove();
+          hoverNoteLabel.remove(); 
+          hoverNoteLabel = null; 
+        }
+      };
+      
+      const handleClick = (e) => {
+        if (isDragging) return;
+        
+        const rect = container.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / (zoom / 100);
+        const y = (e.clientY - rect.top) / (zoom / 100);
+        
+        if (y >= 30 && y <= 120) {
+          const midi = yToMidi(y, clef);
+          
+          if (currentChord) {
+            if (chordNotes.length === 0) {
+              setChordNotes([midi]);
+              const newNote = {
+                midi,
+                notes: [midi],
+                chord: true,
+                duration: currentDuration,
+                accidental: currentAccidental,
+                dot: currentDot,
+                tie: currentTie,
+                dynamic: currentDynamic,
+                articulation: currentArticulation
+              };
+              const newNotes = [...notes, newNote];
+              addToHistory(newNotes);
+              setSelectedNoteIndices([newNotes.length - 1]);
+            } else {
+              const updatedChordNotes = [...chordNotes, midi];
+              setChordNotes(updatedChordNotes);
+              const newNotes = [...notes];
+              const lastIndex = newNotes.length - 1;
+              if (newNotes[lastIndex] && newNotes[lastIndex].chord) {
+                newNotes[lastIndex] = {
+                  ...newNotes[lastIndex],
+                  notes: updatedChordNotes,
+                  midi: updatedChordNotes[0]
+                };
+                addToHistory(newNotes);
+              }
+            }
+          } else {
+            const newNote = {
+              midi,
+              duration: currentDuration,
+              accidental: currentAccidental,
+              rest: currentRest,
+              tie: currentTie,
+              dot: currentDot,
+              tuplet: currentTuplet ? { num: 3, den: 2 } : null,
+              dynamic: currentDynamic,
+              articulation: currentArticulation,
+              ornament: currentOrnament
+            };
+            
+            const newNotes = [...notes, newNote];
+            addToHistory(newNotes);
+            setSelectedNoteIndices([newNotes.length - 1]);
+            
+            if (currentTie) setCurrentTie(false);
+          }
+        }
+      };
+      
+      // Store handlers and SVG reference
+      eventHandlersRef.current = {
+        handlers: { handleMouseMove, handleMouseLeave, handleClick },
+        svg: svg
+      };
+      
+      // Add event listeners
+      svg.addEventListener('mousemove', handleMouseMove);
+      svg.addEventListener('mouseleave', handleMouseLeave);
+      svg.addEventListener('click', handleClick);
+    }, 100);
+    
+    // Cleanup function
+    return () => {
+      clearTimeout(timeoutId);
+      if (eventHandlersRef.current.handlers && eventHandlersRef.current.svg) {
+        const { handleMouseMove, handleMouseLeave, handleClick } = eventHandlersRef.current.handlers;
+        eventHandlersRef.current.svg.removeEventListener('mousemove', handleMouseMove);
+        eventHandlersRef.current.svg.removeEventListener('mouseleave', handleMouseLeave);
+        eventHandlersRef.current.svg.removeEventListener('click', handleClick);
+        eventHandlersRef.current = { handlers: null, svg: null };
+      }
+    };
+  }, [readOnly, zoom, clef, yToMidi, midiToY, isDragging, currentChord, chordNotes, currentDuration, currentAccidental, currentDot, currentTie, currentRest, currentTuplet, currentDynamic, currentArticulation, currentOrnament, notes, addToHistory, setSelectedNoteIndices, setChordNotes]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -621,6 +868,46 @@ const ProfessionalMusicEditor = ({
         return;
       }
       
+      // Accidental shortcuts
+      if (e.key === '#') {
+        e.preventDefault();
+        setCurrentAccidental('#');
+      } else if (e.key === 'b') {
+        e.preventDefault();
+        setCurrentAccidental('b');
+      } else if (e.key === 'n') {
+        e.preventDefault();
+        setCurrentAccidental('n');
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setCurrentAccidental(null);
+      }
+      
+      // Duration shortcuts (numbers)
+      if (e.key >= '1' && e.key <= '6') {
+        const durationMap = { '1': 'w', '2': 'h', '3': 'q', '4': '8', '5': '16', '6': '32' };
+        setCurrentDuration(durationMap[e.key]);
+      }
+      
+      // Rest shortcut
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        setCurrentRest(!currentRest);
+      }
+      
+      // Tie shortcut
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        setCurrentTie(!currentTie);
+      }
+      
+      // Dot shortcut
+      if (e.key === '.') {
+        e.preventDefault();
+        setCurrentDot(!currentDot);
+      }
+      
+      // Delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedNoteIndices.length > 0) {
           const newNotes = notes.filter((_, i) => !selectedNoteIndices.includes(i));
@@ -632,7 +919,7 @@ const ProfessionalMusicEditor = ({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [readOnly, undo, redo, copyNotes, pasteNotes, selectAll, selectNone, selectedNoteIndices, notes, addToHistory]);
+  }, [readOnly, undo, redo, copyNotes, pasteNotes, selectAll, selectNone, selectedNoteIndices, notes, addToHistory, currentRest, currentTie, currentDot]);
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -788,28 +1075,78 @@ const ProfessionalMusicEditor = ({
               </Menu>
             </Box>
 
-            {/* Note Properties Toolbar */}
-            <Box sx={{ mb: 1, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
-              {/* Durations */}
-              <Typography variant="caption">Duration:</Typography>
-              {durationOptions.map(({ value, title }) => (
-                <NoteDurationButton
-                  key={value}
-                  duration={value}
-                  isSelected={currentDuration === value}
-                  onClick={() => setCurrentDuration(value)}
-                  title={title}
-                />
+            {/* Note Properties Toolbar - Enhanced for Intuitive Use */}
+            <Box sx={{ 
+              mb: 1, 
+              display: 'flex', 
+              gap: 1, 
+              alignItems: 'center', 
+              flexWrap: 'wrap', 
+              p: 1.5, 
+              bgcolor: 'primary.50', 
+              borderRadius: 2,
+              border: '2px solid',
+              borderColor: 'primary.200'
+            }}>
+              {/* Instructions - Enhanced for Intuitive Use */}
+              <Box sx={{ 
+                width: '100%', 
+                mb: 1, 
+                p: 1.5, 
+                bgcolor: 'info.light', 
+                borderRadius: 1,
+                border: '1px solid',
+                borderColor: 'info.main'
+              }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5, color: 'info.dark' }}>
+                  💡 Как использовать:
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography variant="caption" sx={{ display: 'block' }}>
+                    • <strong>Кликните мышкой</strong> на нотоносце, чтобы добавить ноту
+                  </Typography>
+                  <Typography variant="caption" sx={{ display: 'block' }}>
+                    • <strong>Наведите мышь</strong> на нотоносец - увидите позицию ноты (синяя линия)
+                  </Typography>
+                  <Typography variant="caption" sx={{ display: 'block' }}>
+                    • <strong>Клавиатура:</strong> # (диез), b (бемоль), n (бекар), 1-6 (длительности), r (пауза), t (лига), . (точка)
+                  </Typography>
+                  <Typography variant="caption" sx={{ display: 'block' }}>
+                    • Выберите длительность и альтерацию <strong>перед кликом</strong>, или используйте клавиатуру
+                  </Typography>
+                </Box>
+              </Box>
+              
+              {/* Durations - Enhanced with keyboard hints */}
+              <Typography variant="body2" sx={{ fontWeight: 'bold', mr: 1 }}>Длительность (1-6):</Typography>
+              {durationOptions.map(({ value, title }, index) => (
+                <Tooltip key={value} title={`${title} - Нажмите ${index + 1}`}>
+                  <span>
+                    <NoteDurationButton
+                      duration={value}
+                      isSelected={currentDuration === value}
+                      onClick={() => setCurrentDuration(value)}
+                      title={title}
+                    />
+                  </span>
+                </Tooltip>
               ))}
 
-              {/* Dot */}
-              <Chip
-                label="•"
-                size="small"
-                onClick={() => setCurrentDot(!currentDot)}
-                color={currentDot ? 'primary' : 'default'}
-                sx={{ fontSize: '20px' }}
-              />
+              <Divider orientation="vertical" flexItem />
+              
+              {/* Dot - Enhanced */}
+              <Tooltip title="Dot (Press .)">
+                <Chip
+                  label="•"
+                  size="medium"
+                  onClick={() => setCurrentDot(!currentDot)}
+                  color={currentDot ? 'primary' : 'default'}
+                  sx={{ 
+                    fontSize: '20px',
+                    fontWeight: currentDot ? 'bold' : 'normal'
+                  }}
+                />
+              </Tooltip>
 
               {/* Tuplet */}
               <Button
@@ -831,46 +1168,138 @@ const ProfessionalMusicEditor = ({
                 </MenuItem>
               </Menu>
 
-              {/* Accidentals */}
-              <Typography variant="caption" sx={{ ml: 1 }}>Accidental:</Typography>
-              {[null, '#', 'b', 'n'].map(acc => (
-                <button
-                  key={acc || 'nat'}
-                  onClick={() => setCurrentAccidental(acc)}
-                  style={{
-                    padding: '4px 8px',
-                    border: currentAccidental === acc ? '2px solid #1976d2' : '1px solid #ccc',
-                    backgroundColor: currentAccidental === acc ? '#e3f2fd' : 'white',
-                    cursor: 'pointer',
-                    fontSize: '14px'
+              {/* Accidentals - Enhanced with better UI */}
+              <Divider orientation="vertical" flexItem />
+              <Typography variant="body2" sx={{ ml: 1, fontWeight: 'bold' }}>Альтерация:</Typography>
+              <Tooltip title="Диез (#) - Нажмите #">
+                <IconButton
+                  size="small"
+                  onClick={() => setCurrentAccidental('#')}
+                  color={currentAccidental === '#' ? 'primary' : 'default'}
+                  sx={{
+                    border: currentAccidental === '#' ? '2px solid' : '1px solid',
+                    borderColor: currentAccidental === '#' ? 'primary.main' : 'divider',
+                    minWidth: 40,
+                    fontWeight: 'bold',
+                    fontSize: '18px'
                   }}
                 >
-                  {acc || '♮'}
-                </button>
-              ))}
+                  #
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Бемоль (b) - Нажмите b">
+                <IconButton
+                  size="small"
+                  onClick={() => setCurrentAccidental('b')}
+                  color={currentAccidental === 'b' ? 'primary' : 'default'}
+                  sx={{
+                    border: currentAccidental === 'b' ? '2px solid' : '1px solid',
+                    borderColor: currentAccidental === 'b' ? 'primary.main' : 'divider',
+                    minWidth: 40,
+                    fontWeight: 'bold',
+                    fontSize: '18px'
+                  }}
+                >
+                  ♭
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Бекар (♮) - Нажмите n">
+                <IconButton
+                  size="small"
+                  onClick={() => setCurrentAccidental('n')}
+                  color={currentAccidental === 'n' ? 'primary' : 'default'}
+                  sx={{
+                    border: currentAccidental === 'n' ? '2px solid' : '1px solid',
+                    borderColor: currentAccidental === 'n' ? 'primary.main' : 'divider',
+                    minWidth: 40,
+                    fontWeight: 'bold',
+                    fontSize: '18px'
+                  }}
+                >
+                  ♮
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Без альтерации - Нажмите Escape">
+                <IconButton
+                  size="small"
+                  onClick={() => setCurrentAccidental(null)}
+                  color={currentAccidental === null ? 'primary' : 'default'}
+                  sx={{
+                    border: currentAccidental === null ? '2px solid' : '1px solid',
+                    borderColor: currentAccidental === null ? 'primary.main' : 'divider',
+                    minWidth: 40
+                  }}
+                >
+                  Clear
+                </IconButton>
+              </Tooltip>
 
-              {/* Rest/Tie */}
-              <Chip
-                label="Rest"
-                size="small"
-                onClick={() => setCurrentRest(!currentRest)}
-                color={currentRest ? 'primary' : 'default'}
-              />
-              <Chip
-                label="Tie"
-                size="small"
-                onClick={() => setCurrentTie(!currentTie)}
-                color={currentTie ? 'primary' : 'default'}
-              />
+              <Divider orientation="vertical" flexItem />
+              
+              {/* Rest/Tie - Enhanced */}
+              <Tooltip title="Пауза - Нажмите R">
+                <Chip
+                  label="♩ Пауза"
+                  size="medium"
+                  onClick={() => setCurrentRest(!currentRest)}
+                  color={currentRest ? 'primary' : 'default'}
+                  sx={{ 
+                    fontWeight: currentRest ? 'bold' : 'normal',
+                    fontSize: '13px'
+                  }}
+                />
+              </Tooltip>
+              <Tooltip title="Лига - Нажмите T">
+                <Chip
+                  label="⌒ Лига"
+                  size="medium"
+                  onClick={() => setCurrentTie(!currentTie)}
+                  color={currentTie ? 'primary' : 'default'}
+                  sx={{ 
+                    fontWeight: currentTie ? 'bold' : 'normal',
+                    fontSize: '13px'
+                  }}
+                />
+              </Tooltip>
+              <Tooltip title="Точка - Нажмите .">
+                <Chip
+                  label="• Точка"
+                  size="medium"
+                  onClick={() => setCurrentDot(!currentDot)}
+                  color={currentDot ? 'primary' : 'default'}
+                  sx={{ 
+                    fontWeight: currentDot ? 'bold' : 'normal',
+                    fontSize: '18px'
+                  }}
+                />
+              </Tooltip>
 
-              {/* Chord Mode */}
-              <Chip
-                label="Chord"
-                size="small"
-                icon={<MusicNote />}
-                onClick={() => setCurrentChord(!currentChord)}
-                color={currentChord ? 'primary' : 'default'}
-              />
+              <Divider orientation="vertical" flexItem />
+              
+              {/* Chord Mode - Enhanced */}
+              <Divider orientation="vertical" flexItem />
+              <Tooltip title="Режим аккорда: Кликните несколько раз, чтобы добавить ноты в аккорд">
+                <Chip
+                  label="🎹 Аккорд"
+                  size="medium"
+                  icon={<MusicNote />}
+                  onClick={() => {
+                    setCurrentChord(!currentChord);
+                    if (!currentChord) {
+                      setChordNotes([]);
+                    }
+                  }}
+                  color={currentChord ? 'primary' : 'default'}
+                  sx={{ 
+                    fontWeight: currentChord ? 'bold' : 'normal'
+                  }}
+                />
+              </Tooltip>
+              {currentChord && (
+                <Typography variant="caption" sx={{ color: currentChord ? 'primary.main' : 'text.secondary', fontWeight: 'bold' }}>
+                  {chordNotes.length > 0 ? `${chordNotes.length} нот(ы) в аккорде` : 'Кликните на нотоносце для добавления нот'}
+                </Typography>
+              )}
 
               {/* Dynamics */}
               <Typography variant="caption" sx={{ ml: 1 }}>Dynamic:</Typography>
@@ -917,7 +1346,53 @@ const ProfessionalMusicEditor = ({
           </>
         )}
         
-        <div ref={containerRef} style={{ width: '100%', overflow: 'auto' }} />
+        {/* Staff Container with Visual Feedback */}
+        <Box 
+          ref={containerRef} 
+          sx={{ 
+            width: '100%', 
+            overflow: 'auto',
+            position: 'relative',
+            minHeight: '200px',
+            bgcolor: 'white',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            p: 1,
+            '&:hover': {
+              borderColor: 'primary.main'
+            }
+          }}
+        >
+          {/* Helper text when empty */}
+          {notes.length === 0 && !readOnly && (
+            <Box sx={{ 
+              position: 'absolute', 
+              top: '50%', 
+              left: '50%', 
+              transform: 'translate(-50%, -50%)',
+              textAlign: 'center',
+              color: 'text.secondary',
+              pointerEvents: 'none',
+              zIndex: 1,
+              bgcolor: 'rgba(255, 255, 255, 0.9)',
+              p: 2,
+              borderRadius: 2,
+              border: '1px dashed',
+              borderColor: 'primary.main'
+            }}>
+              <Typography variant="h6" sx={{ mb: 1, color: 'primary.main' }}>
+                🎵 Click here to add notes
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 0.5 }}>
+                Move your mouse over the staff to see note positions
+              </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+                Keyboard shortcuts: # (sharp), b (flat), n (natural), 1-6 (durations), r (rest), t (tie), . (dot)
+              </Typography>
+            </Box>
+          )}
+        </Box>
       </Paper>
 
       {/* Custom Tuplet Dialog */}

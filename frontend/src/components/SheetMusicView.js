@@ -33,6 +33,7 @@ import ProfessionalMusicEditor from './ProfessionalMusicEditor';
 import DirectionEditor from './DirectionEditor';
 import PlaybackController from './PlaybackController';
 import KeySignatureSelector from './KeySignatureSelector';
+import HarmonicFunctionEditor from './HarmonicFunctionEditor';
 import { parseMusicXML, organizeNotesForRendering } from './MusicXMLParser';
 import SheetMusicDisplay from './SheetMusicDisplay';
 
@@ -76,6 +77,9 @@ const SheetMusicView = ({
 
   // Directions (Roman numerals, figured bass)
   const [directions, setDirections] = useState([]);
+  
+  // Harmonic functions
+  const [harmonicFunctions, setHarmonicFunctions] = useState([]);
 
   // Loaded MusicXML data
   const [loadedMusicData, setLoadedMusicData] = useState(null);
@@ -296,6 +300,7 @@ const SheetMusicView = ({
       <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
         <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} sx={{ mb: 2 }}>
           <Tab label="Edit" />
+          <Tab label="Harmonic Functions" />
           <Tab label="View" />
         </Tabs>
 
@@ -377,7 +382,59 @@ const SheetMusicView = ({
           </Box>
         )}
 
-        {activeTab === 1 && loadedMusicData && (
+        {activeTab === 1 && (
+          <Box>
+            <Paper sx={{ p: 3, mb: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Harmonic Functions Editor
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Enter harmonic functions using notation like T{'{'}{'}'}, D{'{'}extra: 7{'}'}, S{'{'}position: 3{'}'}
+              </Typography>
+              <HarmonicFunctionEditor
+                value={harmonicFunctions}
+                onChange={setHarmonicFunctions}
+                keySignature={keySignature}
+              />
+            </Paper>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="contained"
+                onClick={async () => {
+                  try {
+                    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+                    const response = await fetch(`${apiUrl}/api/harmonize-functions`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        functions: harmonicFunctions,
+                        key_signature: keySignature
+                      })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                      // Update staff data with solution
+                      // Implementation depends on response format
+                    }
+                  } catch (error) {
+                    console.error('Error solving harmonic functions:', error);
+                  }
+                }}
+                disabled={harmonicFunctions.length === 0}
+              >
+                Solve
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => setHarmonicFunctions([])}
+              >
+                Clear
+              </Button>
+            </Box>
+          </Box>
+        )}
+
+        {activeTab === 2 && loadedMusicData && (
           <SheetMusicDisplay
             musicData={loadedMusicData}
             showRomanNumerals={showRomanNumerals}

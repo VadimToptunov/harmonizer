@@ -40,7 +40,7 @@ services:
       context: .
       dockerfile: Dockerfile.nginx
       args:
-        - frontend-builder
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
     container_name: harmony-nginx
     ports:
       - "80:80"
