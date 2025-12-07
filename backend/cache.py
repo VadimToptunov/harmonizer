@@ -34,15 +34,26 @@ def get_redis_client():
     return redis_client
 
 
-@lru_cache(maxsize=1000)
+# In-memory cache for cache keys (since they're already hashed strings)
+_cache_key_cache = {}
+
 def cache_key(operation: str, **kwargs) -> str:
-    """Generate cache key from operation and parameters (memoized)."""
+    """Generate cache key from operation and parameters.
+    
+    Note: We can't use @lru_cache with **kwargs because dicts are not hashable.
+    Instead, we use a simple in-memory cache keyed by the JSON string representation.
+    """
     key_data = {
         'operation': operation,
         **kwargs
     }
     key_string = json.dumps(key_data, sort_keys=True)
-    return f"harmony:{hashlib.md5(key_string.encode()).hexdigest()}"
+    
+    # Simple in-memory cache for the final hash
+    if key_string not in _cache_key_cache:
+        _cache_key_cache[key_string] = f"harmony:{hashlib.md5(key_string.encode()).hexdigest()}"
+    
+    return _cache_key_cache[key_string]
 
 
 def get_cached_solution(operation: str, **kwargs) -> Optional[Dict]:

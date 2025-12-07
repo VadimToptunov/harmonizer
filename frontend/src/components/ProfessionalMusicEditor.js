@@ -403,9 +403,13 @@ const ProfessionalMusicEditor = ({
     }
     
     return Math.max(21, Math.min(108, Math.round(midi)));
-  }, [zoom]);
+  }, []);
   
   // Get note position on staff for visual feedback
+  // Note: This returns coordinates in the same coordinate system as yToMidi receives.
+  // Since context.scale() is applied in renderStaff, the coordinate system is already scaled.
+  // The coordinates from SVG events (via getScreenCTM) are already in the scaled coordinate system.
+  // Therefore, we return coordinates without additional zoom scaling to match the input coordinate system.
   const midiToY = useCallback((midi, clef) => {
     const staffTop = 40;
     const lineSpacing = 10;
@@ -434,6 +438,8 @@ const ProfessionalMusicEditor = ({
       y = staffTop + semitonesFromBase * spaceHeight;
     }
     
+    // Return coordinates in the same system as yToMidi receives (already scaled by context.scale)
+    // No additional zoom scaling needed - the coordinate system is already scaled
     return y;
   }, []);
 
