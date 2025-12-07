@@ -42,18 +42,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build frontend
-        run: |
-          cd frontend
-          npm ci
-          npm run build
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        if: github.ref == 'refs/heads/main'
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./frontend/build
+      # Frontend deployment is handled by frontend.yml workflow
+      # This workflow only builds and pushes Docker images
 
   test:
     runs-on: ubuntu-latest
