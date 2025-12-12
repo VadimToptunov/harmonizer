@@ -42,14 +42,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Install dependencies
+      - name: Check for package-lock.json
         working-directory: ./frontend
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci --prefer-offline --no-audit
+          if [ ! -f package-lock.json ]; then
+            echo "⚠️  Warning: package-lock.json is missing!"
+            echo "Generating package-lock.json for this build..."
+            echo "⚠️  Please commit package-lock.json to ensure deterministic builds"
+            npm install --package-lock-only --no-audit
           else
-            npm install --prefer-offline --no-audit
+            echo "✅ package-lock.json found"
           fi
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci --prefer-offline --no-audit
 
       - name: Build
         working-directory: ./frontend

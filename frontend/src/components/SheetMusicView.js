@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { CircularProgress, Box } from '@mui/material';
 import {
   Box,
   Paper,
@@ -14,7 +13,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField
+  TextField,
+  CircularProgress,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import {
   Add,
@@ -33,6 +35,7 @@ import { lazy } from 'react';
 const EnhancedStaffEditor = lazy(() => import('./EnhancedStaffEditor'));
 const AdvancedMusicEditor = lazy(() => import('./AdvancedMusicEditor'));
 const ProfessionalMusicEditor = lazy(() => import('./ProfessionalMusicEditor'));
+const OptimizedMusicEditor = lazy(() => import('./OptimizedMusicEditor'));
 const DirectionEditor = lazy(() => import('./DirectionEditor'));
 const PlaybackController = lazy(() => import('./PlaybackController'));
 const KeySignatureSelector = lazy(() => import('./KeySignatureSelector'));
@@ -51,8 +54,12 @@ const SheetMusicView = ({
   onExport,
   onSave
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+  
   const [activeTab, setActiveTab] = useState(0);
-  const [zoom, setZoom] = useState(100);
+  const [zoom, setZoom] = useState(isMobile ? 80 : 100);
   const [showSettings, setShowSettings] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   
@@ -263,10 +270,25 @@ const SheetMusicView = ({
   };
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5' }}>
-      {/* Compact Toolbar */}
+    <Box sx={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      bgcolor: 'background.default',
+      overflow: 'hidden'
+    }}>
+      {/* Compact Toolbar - Responsive */}
       <Paper elevation={1} sx={{ borderRadius: 0 }}>
-        <Toolbar variant="dense" sx={{ minHeight: '48px !important', gap: 1, px: 2 }}>
+        <Toolbar 
+          variant="dense" 
+          sx={{ 
+            minHeight: isMobile ? '40px !important' : '48px !important', 
+            gap: isMobile ? 0.5 : 1, 
+            px: isMobile ? 1 : 2,
+            flexWrap: isMobile ? 'nowrap' : 'wrap',
+            overflowX: isMobile ? 'auto' : 'visible'
+          }}
+        >
           <IconButton size="small" onClick={() => setUploadDialogOpen(true)} title="Upload MusicXML">
             <Upload fontSize="small" />
           </IconButton>
@@ -300,19 +322,25 @@ const SheetMusicView = ({
         </Toolbar>
       </Paper>
 
-      {/* Main content */}
-      <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+      {/* Main content - Responsive padding */}
+      <Box sx={{ 
+        flex: 1, 
+        overflow: 'auto', 
+        p: isMobile ? 1 : isTablet ? 2 : 3 
+      }}>
         <Tabs 
           value={activeTab} 
           onChange={(e, v) => setActiveTab(v)} 
+          variant={isMobile ? 'fullWidth' : 'standard'}
           sx={{ 
-            mb: 3,
+            mb: isMobile ? 2 : 3,
             borderBottom: 1,
             borderColor: 'divider',
             '& .MuiTab-root': {
               textTransform: 'none',
               fontWeight: 500,
-              minHeight: 48
+              minHeight: isMobile ? 40 : 48,
+              fontSize: isMobile ? '0.85rem' : '1rem'
             }
           }}
         >
@@ -338,34 +366,34 @@ const SheetMusicView = ({
             {staffCount === 4 && (
               <>
                 <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>}>
-                  <ProfessionalMusicEditor
-                  staffId="soprano"
-                  clef="treble"
-                  keySignature={keySignature}
-                  timeSignature={timeSignature}
-                  notes={staffData.staff1.voices.soprano}
-                  onNotesChange={(notes) => handleStaffNotesChange('staff1', 'soprano', notes)}
-                  onKeySignatureChange={setKeySignature}
-                  staffLabel="Soprano"
-                  showLabels={true}
-                  measures={measures}
-                  tempo={tempo}
-                />
+                  <OptimizedMusicEditor
+                    staffId="soprano"
+                    clef="treble"
+                    keySignature={keySignature}
+                    timeSignature={timeSignature}
+                    notes={staffData.staff1.voices.soprano}
+                    onNotesChange={(notes) => handleStaffNotesChange('staff1', 'soprano', notes)}
+                    onKeySignatureChange={setKeySignature}
+                    staffLabel="Soprano"
+                    showLabels={true}
+                    measures={measures}
+                    tempo={tempo}
+                  />
                 </Suspense>
                 <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>}>
-                  <ProfessionalMusicEditor
-                  staffId="alto"
-                  clef="treble"
-                  keySignature={keySignature}
-                  timeSignature={timeSignature}
-                  notes={staffData.staff1.voices.alto}
-                  onNotesChange={(notes) => handleStaffNotesChange('staff1', 'alto', notes)}
-                  onKeySignatureChange={setKeySignature}
-                  staffLabel="Alto"
-                  showLabels={true}
-                  measures={measures}
-                  tempo={tempo}
-                />
+                  <OptimizedMusicEditor
+                    staffId="alto"
+                    clef="treble"
+                    keySignature={keySignature}
+                    timeSignature={timeSignature}
+                    notes={staffData.staff1.voices.alto}
+                    onNotesChange={(notes) => handleStaffNotesChange('staff1', 'alto', notes)}
+                    onKeySignatureChange={setKeySignature}
+                    staffLabel="Alto"
+                    showLabels={true}
+                    measures={measures}
+                    tempo={tempo}
+                  />
                 </Suspense>
               </>
             )}
