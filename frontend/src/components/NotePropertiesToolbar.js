@@ -186,8 +186,8 @@ const NotePropertiesToolbar = React.memo(({
 
       {/* Accidentals */}
       <Divider orientation="vertical" flexItem />
-      <Typography variant="body2" sx={{ ml: 1, fontWeight: 'bold' }}>Альтерация:</Typography>
-      <Tooltip title="Диез (#)">
+      <Typography variant="body2" sx={{ ml: 1, fontWeight: 'bold' }}>Accidentals:</Typography>
+      <Tooltip title="Sharp (#)">
         <IconButton
           size="small"
           onClick={() => onAccidentalChange('#')}
@@ -203,7 +203,7 @@ const NotePropertiesToolbar = React.memo(({
           #
         </IconButton>
       </Tooltip>
-      <Tooltip title="Бемоль (b)">
+      <Tooltip title="Flat (♭)">
         <IconButton
           size="small"
           onClick={() => onAccidentalChange('b')}
@@ -219,7 +219,7 @@ const NotePropertiesToolbar = React.memo(({
           ♭
         </IconButton>
       </Tooltip>
-      <Tooltip title="Бекар (n)">
+      <Tooltip title="Natural (♮)">
         <IconButton
           size="small"
           onClick={() => onAccidentalChange('n')}
@@ -235,7 +235,7 @@ const NotePropertiesToolbar = React.memo(({
           ♮
         </IconButton>
       </Tooltip>
-      <Tooltip title="Без альтерации (Esc)">
+      <Tooltip title="No accidental (Esc)">
         <IconButton
           size="small"
           onClick={() => onAccidentalChange(null)}
@@ -254,18 +254,18 @@ const NotePropertiesToolbar = React.memo(({
       <Divider orientation="vertical" flexItem />
       
       {/* Rest/Tie */}
-      <Tooltip title="Пауза (R)">
+      <Tooltip title="Rest (R)">
         <Chip
-          label="♩ Пауза"
+          label="♩ Rest"
           size="medium"
           onClick={onRestToggle}
           color={rest ? 'primary' : 'default'}
           sx={{ fontWeight: rest ? 'bold' : 'normal' }}
         />
       </Tooltip>
-      <Tooltip title="Лига (T)">
+      <Tooltip title="Tie (T)">
         <Chip
-          label="⌒ Лига"
+          label="⌒ Tie"
           size="medium"
           onClick={onTieToggle}
           color={tie ? 'primary' : 'default'}
